@@ -15,6 +15,12 @@ const firebaseConfig = {
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
 
+// Temporary debug: print config to verify env vars are loaded in dev
+if (typeof window !== 'undefined') {
+  // eslint-disable-next-line no-console
+  console.log('Firebase config:', firebaseConfig);
+}
+
 export const auth = getAuth(app);
 export const firestore = getFirestore(app);
 export const storage = getStorage(app);

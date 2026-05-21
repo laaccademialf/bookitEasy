@@ -74,3 +74,16 @@ export async function getHostProfileByUsername(username: string): Promise<UserPr
 export async function updateUserRole(uid: string, role: UserRole) {
   await updateDoc(doc(firestore, 'users', uid), { role });
 }
+
+export async function createUserDoc(uid: string, email: string, name: string, role: UserRole, hostUsername = '') {
+  const userDoc = {
+    uid,
+    email,
+    name,
+    role,
+    hostUsername,
+    createdAt: serverTimestamp(),
+  };
+
+  await setDoc(doc(firestore, 'users', uid), userDoc);
+}

@@ -17,18 +17,23 @@ interface AuthContextValue {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
+  impersonatedRole?: UserProfile['role'] | null;
+  setImpersonatedRole?: (role: UserProfile['role'] | null) => void;
 }
 
 export const AuthContext = createContext<AuthContextValue>({
   user: null,
   profile: null,
   loading: true,
+  impersonatedRole: null,
+  setImpersonatedRole: () => {},
 });
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [impersonatedRole, setImpersonatedRole] = useState<UserProfile['role'] | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -55,7 +60,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading }}>
+    <AuthContext.Provider
+      value={{ user, profile, loading, impersonatedRole, setImpersonatedRole }}
+    >
       {children}
     </AuthContext.Provider>
   );
