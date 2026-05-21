@@ -15,23 +15,46 @@ export interface Expense {
 }
 
 const expensesCollection = collection(firestore, 'expenses');
+const EXPENSES_CACHE_TTL_MS = 10000;
+const hostExpensesCache = new Map<string, { data: Expense[]; expiresAt: number }>();
+const propertyExpensesCache = new Map<string, { data: Expense[]; expiresAt: number }>();
+
+function resetExpensesCache() {
+  hostExpensesCache.clear();
+  propertyExpensesCache.clear();
+}
 
 export async function createExpense(expense: Omit<Expense, 'id' | 'createdAt'>) {
   const docRef = await addDoc(expensesCollection, {
     ...expense,
     createdAt: serverTimestamp(),
   });
+  resetExpensesCache();
   return docRef.id;
 }
 
 export async function getHostExpenses(hostId: string): Promise<Expense[]> {
+  const cached = hostExpensesCache.get(hostId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
   const q = query(expensesCollection, where('hostId', '==', hostId));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...(docSnap.data() as Expense) }));
+  const data = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...(docSnap.data() as Expense) }));
+  hostExpensesCache.set(hostId, { data, expiresAt: Date.now() + EXPENSES_CACHE_TTL_MS });
+  return data;
 }
 
 export async function getPropertyExpenses(propertyId: string): Promise<Expense[]> {
+  const cached = propertyExpensesCache.get(propertyId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
   const q = query(expensesCollection, where('propertyId', '==', propertyId));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...(docSnap.data() as Expense) }));
+  const data = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...(docSnap.data() as Expense) }));
+  propertyExpensesCache.set(propertyId, { data, expiresAt: Date.now() + EXPENSES_CACHE_TTL_MS });
+  return data;
 }

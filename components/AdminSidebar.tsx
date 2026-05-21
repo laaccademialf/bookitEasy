@@ -2,7 +2,7 @@
 
 import React, { useContext, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { AuthContext } from '../app/providers';
 import { Briefcase, Building2, ChevronLeft, ChevronRight, LayoutDashboard, Menu, Users, X } from 'lucide-react';
 
@@ -17,6 +17,7 @@ export default function AdminSidebar({ isOpen, isCollapsed, onToggleOpen, onTogg
   const authContext = useContext(AuthContext as unknown as React.Context<any>);
   const { profile, impersonatedRole, setImpersonatedRole } = authContext as any;
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const navItems = [
@@ -24,6 +25,14 @@ export default function AdminSidebar({ isOpen, isCollapsed, onToggleOpen, onTogg
     { href: '/admin/accounts', label: 'Управління акаунтами', icon: Users },
     { href: '/admin/properties', label: 'Управління обʼєктами', icon: Building2 },
   ];
+
+  React.useEffect(() => {
+    if (!profile || profile.role !== 'admin') return;
+
+    ['/admin', '/admin/accounts', '/admin/properties'].forEach((href) => {
+      router.prefetch(href);
+    });
+  }, [profile, router]);
 
   if (!profile || profile.role !== 'admin') {
     return null;
@@ -94,7 +103,6 @@ export default function AdminSidebar({ isOpen, isCollapsed, onToggleOpen, onTogg
               <Link
                 key={item.href}
                 href={item.href}
-                prefetch={false}
                 onClick={() => setMobileOpen(false)}
                 className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
                   isActive ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'

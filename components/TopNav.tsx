@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useContext } from 'react';
+import { useContext, useEffect } from 'react';
 import { AuthContext } from '../app/providers';
 import { signOutUser } from '../lib/auth';
 
@@ -29,6 +29,14 @@ export function TopNav() {
           { href: '/', label: 'Головна' },
         ]
     : [];
+
+  useEffect(() => {
+    if (!profile || profile.role !== 'host') return;
+
+    ['/dashboard', '/dashboard/properties', '/dashboard/calendar', '/dashboard/finances'].forEach((href) => {
+      router.prefetch(href);
+    });
+  }, [profile, router]);
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/50 bg-white/85 backdrop-blur-xl">

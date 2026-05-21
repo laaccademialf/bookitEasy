@@ -1,5 +1,5 @@
 import { deleteApp, initializeApp } from 'firebase/app';
-import { createUserWithEmailAndPassword, getAuth, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { createUserWithEmailAndPassword, getAuth, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 import { auth, firestore } from './firebase';
 
@@ -64,6 +64,10 @@ export async function signInUser(email: string, password: string) {
 
 export async function signOutUser() {
   return signOut(auth);
+}
+
+export async function sendUserPasswordReset(email: string) {
+  return sendPasswordResetEmail(auth, email.trim().toLowerCase());
 }
 
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {

@@ -31,10 +31,21 @@ export interface Property {
 
 const propertiesCollection = collection(firestore, 'properties');
 const PUBLIC_PROPERTIES_CACHE_TTL_MS = 15000;
+const HOST_PROPERTIES_CACHE_TTL_MS = 10000;
 let publicPropertiesCache: { data: Property[]; expiresAt: number } | null = null;
+const hostPropertiesCache = new Map<string, { data: Property[]; expiresAt: number }>();
 
 function resetPublicPropertiesCache() {
   publicPropertiesCache = null;
+}
+
+function resetHostPropertiesCache(hostId?: string) {
+  if (hostId) {
+    hostPropertiesCache.delete(hostId);
+    return;
+  }
+
+  hostPropertiesCache.clear();
 }
 
 export async function createProperty(property: Omit<Property, 'id' | 'createdAt' | 'updatedAt'>) {
@@ -47,13 +58,21 @@ export async function createProperty(property: Omit<Property, 'id' | 'createdAt'
     updatedAt: serverTimestamp(),
   });
   resetPublicPropertiesCache();
+  resetHostPropertiesCache(property.hostId);
   return docRef.id;
 }
 
 export async function getHostProperties(hostId: string): Promise<Property[]> {
+  const cached = hostPropertiesCache.get(hostId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
   const q = query(propertiesCollection, where('hostId', '==', hostId));
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...(docSnap.data() as Property) }));
+  const data = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...(docSnap.data() as Property) }));
+  hostPropertiesCache.set(hostId, { data, expiresAt: Date.now() + HOST_PROPERTIES_CACHE_TTL_MS });
+  return data;
 }
 
 export async function getPublicProperties(): Promise<Property[]> {
@@ -79,17 +98,22 @@ export async function updateProperty(propertyId: string, data: Partial<Property>
     updatedAt: serverTimestamp(),
   });
   resetPublicPropertiesCache();
+  resetHostPropertiesCache(data.hostId);
 }
 
 export async function deleteProperty(propertyId: string) {
+  const existing = await getPropertyById(propertyId);
   await deleteDoc(doc(propertiesCollection, propertyId));
   resetPublicPropertiesCache();
+  resetHostPropertiesCache(existing?.hostId);
 }
 
 export async function addBlockedDate(propertyId: string, date: string) {
+  const existing = await getPropertyById(propertyId);
   await updateDoc(doc(propertiesCollection, propertyId), {
     blockedDates: arrayUnion(date),
     updatedAt: serverTimestamp(),
   });
   resetPublicPropertiesCache();
+  resetHostPropertiesCache(existing?.hostId);
 }

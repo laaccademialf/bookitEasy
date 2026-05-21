@@ -16,8 +16,12 @@ export default function CalendarPage() {
   useEffect(() => {
     const load = async () => {
       if (!profile?.uid) return;
-      setProperties(await getHostProperties(profile.uid));
-      setBookings(await getHostBookings(profile.uid));
+      const [propertiesData, bookingsData] = await Promise.all([
+        getHostProperties(profile.uid),
+        getHostBookings(profile.uid),
+      ]);
+      setProperties(propertiesData);
+      setBookings(bookingsData);
     };
     load();
   }, [profile]);
