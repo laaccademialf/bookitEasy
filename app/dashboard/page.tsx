@@ -1,6 +1,45 @@
+'use client';
+
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useContext, useEffect } from 'react';
+import { AuthContext } from '../providers';
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const { user, profile, loading } = useContext(AuthContext);
+
+  useEffect(() => {
+    if (loading) return;
+
+    if (!user) {
+      router.replace('/login');
+      return;
+    }
+
+    if (profile?.role === 'admin') {
+      router.replace('/admin');
+    }
+  }, [loading, profile, router, user]);
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-slate-50 text-slate-900">
+        <div className="mx-auto flex min-h-screen max-w-6xl items-center justify-center px-6 py-12 lg:px-10">
+          <p className="text-slate-600">Завантаження кабінету...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  if (profile?.role === 'admin') {
+    return null;
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto max-w-6xl px-6 py-12 lg:px-10">

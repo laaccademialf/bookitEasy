@@ -5,6 +5,13 @@ import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { getUserProfile } from '../lib/auth';
 
+const ADMIN_EMAILS = new Set(
+  [
+    'andrii.disha@gmail.com',
+    ...(process.env.NEXT_PUBLIC_ADMIN_EMAILS || '').split(',').map((item) => item.trim().toLowerCase()).filter(Boolean),
+  ].map((email) => email.toLowerCase())
+);
+
 interface UserProfile {
   uid: string;
   email: string;
@@ -45,11 +52,25 @@ export function Providers({ children }: { children: React.ReactNode }) {
       }
 
       setUser(currentUser);
+      const currentEmail = (currentUser.email || '').toLowerCase();
+      const isAdminByEmail = ADMIN_EMAILS.has(currentEmail);
+
+      if (isAdminByEmail) {
+        setProfile({
+          uid: currentUser.uid,
+          email: currentUser.email || '',
+          name: currentUser.displayName || 'Адміністратор',
+          role: 'admin',
+          hostUsername: '',
+        });
+        setLoading(false);
+        return;
+      }
+
       try {
         const loadedProfile = await getUserProfile(currentUser.uid);
         setProfile(loadedProfile);
       } catch (error) {
-        console.error('Failed to load user profile:', error);
         setProfile(null);
       } finally {
         setLoading(false);

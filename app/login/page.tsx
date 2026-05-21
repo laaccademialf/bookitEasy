@@ -2,8 +2,15 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInUser } from '../../lib/auth';
+import { getUserProfile, signInUser } from '../../lib/auth';
 import Link from 'next/link';
+
+const ADMIN_EMAILS = new Set(
+  [
+    'andrii.disha@gmail.com',
+    ...(process.env.NEXT_PUBLIC_ADMIN_EMAILS || '').split(',').map((item) => item.trim().toLowerCase()).filter(Boolean),
+  ].map((email) => email.toLowerCase())
+);
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,8 +25,17 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await signInUser(email, password);
-      router.push('/dashboard');
+      const credential = await signInUser(email, password);
+      const profile = await getUserProfile(credential.user.uid);
+      const signedInEmail = (credential.user.email || '').toLowerCase();
+
+      if (profile?.role === 'admin' || ADMIN_EMAILS.has(signedInEmail)) {
+        router.push('/admin');
+      } else if (profile?.role === 'host') {
+        router.push('/dashboard');
+      } else {
+        router.push('/');
+      }
     } catch (err: any) {
       const message = err?.message || (err?.code ? String(err.code) : 'Не вдалося увійти. Перевірте email та пароль.');
       setError(message);

@@ -17,10 +17,7 @@ export function TopNav() {
 
   const menuItems = profile
     ? profile.role === 'admin'
-      ? [
-          { href: '/admin', label: 'Адмін-панель' },
-          { href: '/', label: 'Головна' },
-        ]
+      ? []
       : profile.role === 'host'
       ? [
           { href: '/dashboard', label: 'Дашборд' },

@@ -1,22 +1,31 @@
 'use client';
 
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AuthContext } from '../providers';
-import { fetchUsers, type UserProfile, updateUserRole, createUserDoc } from '../../lib/auth';
+import { fetchUsers, type UserProfile } from '../../lib/auth';
+import { getPublicProperties } from '../../lib/properties';
+import { Building2, Users } from 'lucide-react';
 
 export default function AdminPage() {
   const authContext = useContext(AuthContext as unknown as React.Context<any>);
-  const { profile, loading, impersonatedRole } = authContext as any;
+  const { profile, loading } = authContext as any;
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [status, setStatus] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [newUser, setNewUser] = useState({ uid: '', email: '', name: '', role: 'client' as UserProfile['role'] });
+  const [propertiesCount, setPropertiesCount] = useState(0);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     const load = async () => {
-      const data = await fetchUsers();
-      setUsers(data);
+      try {
+        const [loadedUsers, loadedProperties] = await Promise.all([fetchUsers(), getPublicProperties()]);
+        setUsers(loadedUsers);
+        setPropertiesCount(loadedProperties.length);
+        setLoadError('');
+      } catch {
+        setUsers([]);
+        setPropertiesCount(0);
+        setLoadError('Немає доступу до частини адмін-даних. Перевірте налаштування доступу.');
+      }
     };
 
     if (profile?.role === 'admin') {
@@ -24,34 +33,8 @@ export default function AdminPage() {
     }
   }, [profile]);
 
-  const handleRoleChange = async (uid: string, role: UserProfile['role']) => {
-    setStatus('Оновлення...');
-    await updateUserRole(uid, role);
-    setUsers((current) => current.map((user) => (user.uid === uid ? { ...user, role } : user)));
-    setStatus('Роль оновлено');
-    setTimeout(() => setStatus(''), 2000);
-  };
-
-  const handleCreateUser = async () => {
-    if (!newUser.uid) {
-      setStatus('Вкажіть UID існуючого Auth-користувача');
-      return;
-    }
-
-    try {
-      setCreating(true);
-      await createUserDoc(newUser.uid, newUser.email, newUser.name, newUser.role);
-      setStatus('Документ користувача створено');
-      setUsers((curr) => [...curr, { uid: newUser.uid, email: newUser.email, name: newUser.name, role: newUser.role, hostUsername: '', createdAt: new Date() }]);
-      setNewUser({ uid: '', email: '', name: '', role: 'client' });
-    } catch (err) {
-      console.error(err);
-      setStatus('Помилка при створенні документа');
-    } finally {
-      setCreating(false);
-      setTimeout(() => setStatus(''), 2500);
-    }
-  };
+  const hostCount = useMemo(() => users.filter((user) => user.role === 'host').length, [users]);
+  const adminCount = useMemo(() => users.filter((user) => user.role === 'admin').length, [users]);
 
   if (loading) {
     return (
@@ -68,7 +51,7 @@ export default function AdminPage() {
       <main className="min-h-screen bg-slate-50 text-slate-900">
         <div className="mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center px-6 py-12 lg:px-10 text-center">
           <h1 className="text-4xl font-semibold text-slate-900">Доступ заборонено</h1>
-          <p className="mt-4 max-w-2xl text-slate-300">
+          <p className="mt-4 max-w-2xl text-slate-600">
             Для доступу до адмін-панелі потрібен супер-адмінський акаунт.
           </p>
           <Link href="/login" className="mt-8 inline-flex rounded-full bg-sky-500 px-6 py-3 text-sm font-semibold text-white hover:bg-sky-400">
@@ -81,69 +64,51 @@ export default function AdminPage() {
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="mx-auto max-w-7xl px-6 py-12 lg:px-10">
+      <div className="mx-auto max-w-6xl px-6 py-12 lg:px-10">
         <div className="mb-8 rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl">
-          <p className="text-sm uppercase tracking-[0.3em] text-sky-500">Панель супер-адміна</p>
-          <h1 className="mt-4 text-4xl font-semibold text-slate-900">Глобальний моніторинг та керування</h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
-            Список користувачів, контроль ролей та загальна аналітика. Супер-адмін може переводити клієнта на роль орендодавця та керувати ролями.
+          <p className="text-sm uppercase tracking-[0.3em] text-sky-500">Кабінет адміністратора</p>
+          <h1 className="mt-4 text-4xl font-semibold text-slate-900">Керуйте акаунтами і бізнес-обʼєктами</h1>
+          <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600">
+            Створюйте та редагуйте акаунти, призначайте ролі орендодавців і контролюйте каталог обʼєктів, які додають хости.
           </p>
-          {status && <p className="mt-4 text-slate-200">{status}</p>}
+          {loadError && <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">{loadError}</p>}
         </div>
 
-        <div className="space-y-6">
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-slate-900">Створити документ користувача</h3>
-            <p className="mt-2 text-sm text-slate-500">Щоб створити акаунт повністю — спочатку додайте Auth-користувача у Firebase Console, потім вставте його UID тут для створення Firestore-документа.</p>
-
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <input value={newUser.uid} onChange={(e) => setNewUser({ ...newUser, uid: e.target.value })} placeholder="UID (з Auth)" className="rounded-md border px-3 py-2" />
-              <input value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} placeholder="email" className="rounded-md border px-3 py-2" />
-              <input value={newUser.name} onChange={(e) => setNewUser({ ...newUser, name: e.target.value })} placeholder="name" className="rounded-md border px-3 py-2" />
-            </div>
-            <div className="mt-3 flex items-center gap-3">
-              <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value as UserProfile['role'] })} className="rounded-md border px-3 py-2">
-                <option value="client">client</option>
-                <option value="host">host</option>
-                <option value="admin">admin</option>
-              </select>
-              <button onClick={handleCreateUser} disabled={creating} className="rounded-full bg-sky-600 px-4 py-2 text-white">
-                {creating ? 'Створення…' : 'Створити документ'}
-              </button>
-            </div>
+        <div className="grid gap-5 md:grid-cols-4">
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Всього акаунтів</p>
+            <p className="mt-3 text-3xl font-semibold text-slate-900">{users.length}</p>
           </div>
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Орендодавці</p>
+            <p className="mt-3 text-3xl font-semibold text-slate-900">{hostCount}</p>
+          </div>
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Адміни</p>
+            <p className="mt-3 text-3xl font-semibold text-slate-900">{adminCount}</p>
+          </div>
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Обʼєкти в системі</p>
+            <p className="mt-3 text-3xl font-semibold text-slate-900">{propertiesCount}</p>
+          </div>
+        </div>
 
-          {impersonatedRole && (
-            <div className="rounded-[1rem] border border-amber-200 bg-amber-50 p-4 text-amber-700">Ви тимчасово увімкнули роль: {impersonatedRole}</div>
-          )}
-          {users.map((user) => (
-            <div key={user.uid} className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-lg">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="text-sm text-slate-400">{user.email}</p>
-                  <p className="mt-1 text-lg font-semibold text-slate-900">{user.name}</p>
-                  <p className="mt-1 text-sm text-slate-500">Роль: {user.role}</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {(['client', 'host', 'admin'] as UserProfile['role'][]).map((roleOption) => (
-                    <button
-                      key={roleOption}
-                      type="button"
-                      disabled={user.role === roleOption}
-                      onClick={() => handleRoleChange(user.uid, roleOption)}
-                      className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                        user.role === roleOption
-                          ? 'bg-slate-700 text-slate-200'
-                          : 'bg-sky-500 text-white hover:bg-sky-400'
-                      }`}
-                    >
-                      {roleOption}
-                    </button>
-                  ))}
-                </div>
-              </div>
+        <div className="mt-6 grid gap-6 md:grid-cols-2">
+          <Link href="/admin/accounts" className="group rounded-[2rem] border border-slate-200 bg-white p-6 shadow-md transition hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-lg">
+            <div className="inline-flex rounded-xl bg-sky-100 p-3 text-sky-600">
+              <Users className="h-5 w-5" />
             </div>
-          ))}
+            <h2 className="mt-4 text-2xl font-semibold text-slate-900">Управління акаунтами</h2>
+            <p className="mt-2 text-slate-600">Створення, редагування та призначення ролей, включно з роллю орендодавця.</p>
+          </Link>
+
+          <Link href="/admin/properties" className="group rounded-[2rem] border border-slate-200 bg-white p-6 shadow-md transition hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-lg">
+            <div className="inline-flex rounded-xl bg-emerald-100 p-3 text-emerald-600">
+              <Building2 className="h-5 w-5" />
+            </div>
+            <h2 className="mt-4 text-2xl font-semibold text-slate-900">Управління обʼєктами</h2>
+            <p className="mt-2 text-slate-600">Перегляд усіх обʼєктів у системі з деталями власників та характеристиками.</p>
+          </Link>
         </div>
       </div>
     </main>

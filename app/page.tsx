@@ -1,30 +1,52 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
 import { getPublicProperties, type Property } from '../lib/properties';
+import { AuthContext } from './providers';
 
 export default function Home() {
+  const router = useRouter();
+  const { profile, loading: authLoading } = useContext(AuthContext);
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
+    if (authLoading) return;
+
+    if (profile?.role === 'admin') {
+      router.replace('/admin');
+      return;
+    }
+
     const load = async () => {
       try {
         const data = await getPublicProperties();
         setProperties(data);
       } catch (error) {
-        console.error('Failed to load public properties:', error);
         setLoadError('Не вдалося завантажити об’єкти. Перевірте доступ до бази даних.');
       } finally {
         setLoading(false);
       }
     };
     load();
-  }, []);
+  }, [authLoading, profile, router]);
+
+  if (authLoading || profile?.role === 'admin') {
+    return (
+      <main className="min-h-screen bg-slate-50 text-slate-900">
+        <section className="mx-auto max-w-7xl px-6 py-12 lg:px-10">
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-8 text-slate-500 shadow-sm">
+            Перехід до адмін-панелі...
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">

@@ -10,7 +10,10 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && getUserRole(request.auth.uid) == 'admin';
+      return isSignedIn() && (
+        getUserRole(request.auth.uid) == 'admin' ||
+        request.auth.token.email == 'andrii.disha@gmail.com'
+      );
     }
 
     function isHost() {
@@ -19,7 +22,7 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
-      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow update, delete: if isSignedIn() && (request.auth.uid == userId || isAdmin());
     }
 

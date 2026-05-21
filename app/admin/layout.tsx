@@ -1,11 +1,23 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
 import AdminSidebar from '../../components/AdminSidebar';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  const desktopPadding = !isSidebarOpen ? 'lg:pl-0' : isSidebarCollapsed ? 'lg:pl-24' : 'lg:pl-80';
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
-      <AdminSidebar />
-      <div className="ml-0 lg:ml-80">
+      <AdminSidebar
+        isOpen={isSidebarOpen}
+        isCollapsed={isSidebarCollapsed}
+        onToggleOpen={() => setIsSidebarOpen((current) => !current)}
+        onToggleCollapsed={() => setIsSidebarCollapsed((current) => !current)}
+      />
+      <div className={`transition-all duration-300 ${desktopPadding}`}>
         <div className="mx-auto max-w-7xl px-6 py-12 lg:px-10">
           <main>{children}</main>
         </div>

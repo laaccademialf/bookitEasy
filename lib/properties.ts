@@ -30,6 +30,12 @@ export interface Property {
 }
 
 const propertiesCollection = collection(firestore, 'properties');
+const PUBLIC_PROPERTIES_CACHE_TTL_MS = 15000;
+let publicPropertiesCache: { data: Property[]; expiresAt: number } | null = null;
+
+function resetPublicPropertiesCache() {
+  publicPropertiesCache = null;
+}
 
 export async function createProperty(property: Omit<Property, 'id' | 'createdAt' | 'updatedAt'>) {
   const docRef = await addDoc(propertiesCollection, {
@@ -40,6 +46,7 @@ export async function createProperty(property: Omit<Property, 'id' | 'createdAt'
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  resetPublicPropertiesCache();
   return docRef.id;
 }
 
@@ -50,8 +57,14 @@ export async function getHostProperties(hostId: string): Promise<Property[]> {
 }
 
 export async function getPublicProperties(): Promise<Property[]> {
+  if (publicPropertiesCache && publicPropertiesCache.expiresAt > Date.now()) {
+    return publicPropertiesCache.data;
+  }
+
   const snapshot = await getDocs(propertiesCollection);
-  return snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...(docSnap.data() as Property) }));
+  const data = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...(docSnap.data() as Property) }));
+  publicPropertiesCache = { data, expiresAt: Date.now() + PUBLIC_PROPERTIES_CACHE_TTL_MS };
+  return data;
 }
 
 export async function getPropertyById(propertyId: string): Promise<Property | null> {
@@ -65,10 +78,12 @@ export async function updateProperty(propertyId: string, data: Partial<Property>
     ...data,
     updatedAt: serverTimestamp(),
   });
+  resetPublicPropertiesCache();
 }
 
 export async function deleteProperty(propertyId: string) {
   await deleteDoc(doc(propertiesCollection, propertyId));
+  resetPublicPropertiesCache();
 }
 
 export async function addBlockedDate(propertyId: string, date: string) {
@@ -76,4 +91,5 @@ export async function addBlockedDate(propertyId: string, date: string) {
     blockedDates: arrayUnion(date),
     updatedAt: serverTimestamp(),
   });
+  resetPublicPropertiesCache();
 }
