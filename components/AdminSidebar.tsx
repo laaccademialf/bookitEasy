@@ -9,6 +9,11 @@ export default function AdminSidebar() {
   const { profile, impersonatedRole, setImpersonatedRole } = authContext as any;
   const [collapsed, setCollapsed] = useState(false);
 
+  // Only show sidebar if user is admin
+  if (!profile || profile.role !== 'admin') {
+    return null;
+  }
+
   const toggleImpersonation = () => {
     if (!setImpersonatedRole) return;
     if (impersonatedRole === 'host') setImpersonatedRole(null);
