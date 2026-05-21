@@ -20,9 +20,23 @@ const emptyForm = {
   hostUsername: '',
 };
 
-function buildHostUsername(email: string) {
-  const localPart = email.split('@')[0] || 'host';
-  return localPart.toLowerCase().replace(/[^a-z0-9]/g, '-');
+function generateHostKey(length = 12) {
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  const chars = [] as string[];
+
+  if (typeof globalThis !== 'undefined' && globalThis.crypto?.getRandomValues) {
+    const random = new Uint8Array(length);
+    globalThis.crypto.getRandomValues(random);
+    for (let i = 0; i < length; i += 1) {
+      chars.push(alphabet[random[i] % alphabet.length]);
+    }
+  } else {
+    for (let i = 0; i < length; i += 1) {
+      chars.push(alphabet[Math.floor(Math.random() * alphabet.length)]);
+    }
+  }
+
+  return `h-${chars.join('')}`;
 }
 
 export default function AdminAccountsPage() {
@@ -87,7 +101,7 @@ export default function AdminAccountsPage() {
 
     try {
       setCreating(true);
-      const hostUsername = form.role === 'host' ? form.hostUsername || buildHostUsername(form.email) : '';
+      const hostUsername = form.role === 'host' ? form.hostUsername || generateHostKey() : '';
       const createdUser = await createUserByAdmin({
         email: form.email,
         password: form.password,
@@ -136,7 +150,7 @@ export default function AdminAccountsPage() {
     setUsers((current) =>
       current.map((user) => {
         if (user.uid !== uid) return user;
-        const fallbackHostUsername = role === 'host' ? user.hostUsername || buildHostUsername(user.email) : '';
+        const fallbackHostUsername = role === 'host' ? user.hostUsername || generateHostKey() : '';
         return {
           ...user,
           role,
@@ -153,7 +167,7 @@ export default function AdminAccountsPage() {
         email: user.email,
         name: user.name,
         role: user.role,
-        hostUsername: user.role === 'host' ? user.hostUsername || buildHostUsername(user.email) : '',
+        hostUsername: user.role === 'host' ? user.hostUsername || generateHostKey() : '',
       });
       setStatus(`Збережено: ${user.email}`);
     } catch (error) {
@@ -363,7 +377,7 @@ export default function AdminAccountsPage() {
                     ...form,
                     role: nextRole,
                     hostUsername:
-                      nextRole === 'host' ? form.hostUsername || buildHostUsername(form.email) : '',
+                      nextRole === 'host' ? form.hostUsername || generateHostKey() : '',
                   });
                 }}
                 className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 outline-none focus:border-sky-400"
@@ -376,7 +390,7 @@ export default function AdminAccountsPage() {
                 <input
                   value={form.hostUsername}
                   onChange={(event) => setForm({ ...form, hostUsername: event.target.value })}
-                  placeholder="username орендодавця (для /host/[username])"
+                  placeholder="h-xxxxxxxxxxxx"
                   className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 outline-none focus:border-sky-400"
                 />
               )}

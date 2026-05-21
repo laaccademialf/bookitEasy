@@ -8,13 +8,23 @@ import { updateUserProfileData } from '../../../lib/auth';
 import { uploadPropertyImages } from '../../../lib/storage';
 import { Edit3, ExternalLink, PlusCircle, Trash2 } from 'lucide-react';
 
-function makeHostUsername(source: string) {
-  return source
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 32) || `host-${Date.now().toString().slice(-6)}`;
+function makeHostUsername(length = 12) {
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  const chars: string[] = [];
+
+  if (typeof globalThis !== 'undefined' && globalThis.crypto?.getRandomValues) {
+    const random = new Uint8Array(length);
+    globalThis.crypto.getRandomValues(random);
+    for (let i = 0; i < length; i += 1) {
+      chars.push(alphabet[random[i] % alphabet.length]);
+    }
+  } else {
+    for (let i = 0; i < length; i += 1) {
+      chars.push(alphabet[Math.floor(Math.random() * alphabet.length)]);
+    }
+  }
+
+  return `h-${chars.join('')}`;
 }
 
 export default function PropertiesPage() {
@@ -56,7 +66,7 @@ export default function PropertiesPage() {
     if (publicHostUsername) return;
 
     const ensureHostUsername = async () => {
-      const fallback = makeHostUsername(profile.hostUsername || profile.email || profile.name || 'host');
+      const fallback = makeHostUsername();
       if (profile.hostUsername) {
         setPublicHostUsername(profile.hostUsername);
         return;
