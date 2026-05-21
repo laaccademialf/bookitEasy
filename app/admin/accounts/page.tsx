@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { AuthContext } from '../../providers';
 import {
@@ -25,7 +24,6 @@ function buildHostUsername(email: string) {
 }
 
 export default function AdminAccountsPage() {
-  const router = useRouter();
   const authContext = useContext(AuthContext as unknown as React.Context<any>);
   const { profile, loading } = authContext as any;
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -35,11 +33,6 @@ export default function AdminAccountsPage() {
   const [form, setForm] = useState(emptyForm);
   const [creating, setCreating] = useState(false);
   const [loadError, setLoadError] = useState('');
-
-  useEffect(() => {
-    router.prefetch('/admin');
-    router.prefetch('/admin/properties');
-  }, [router]);
 
   useEffect(() => {
     if (profile?.role !== 'admin') return;
@@ -82,6 +75,12 @@ export default function AdminAccountsPage() {
       return;
     }
 
+    if (form.password.length < 6) {
+      setStatus('Пароль має містити щонайменше 6 символів');
+      clearStatus();
+      return;
+    }
+
     try {
       setCreating(true);
       const hostUsername = form.role === 'host' ? form.hostUsername || buildHostUsername(form.email) : '';
@@ -108,8 +107,14 @@ export default function AdminAccountsPage() {
       setForm(emptyForm);
       setStatus('Акаунт додано');
     } catch (error) {
-      console.error(error);
-      setStatus('Не вдалося створити акаунт');
+      const code = (error as any)?.code ? String((error as any).code) : '';
+      if (code === 'auth/email-already-in-use') {
+        setStatus('Користувач з таким email вже існує');
+      } else if (code === 'auth/weak-password') {
+        setStatus('Слабкий пароль. Мінімум 6 символів');
+      } else {
+        setStatus('Не вдалося створити акаунт. Перевірте налаштування доступу і дані форми.');
+      }
     } finally {
       setCreating(false);
       clearStatus();

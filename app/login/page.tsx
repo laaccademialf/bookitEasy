@@ -37,7 +37,13 @@ export default function LoginPage() {
         router.push('/');
       }
     } catch (err: any) {
-      const message = err?.message || (err?.code ? String(err.code) : 'Не вдалося увійти. Перевірте email та пароль.');
+      const code = err?.code ? String(err.code) : '';
+      const message =
+        code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found'
+          ? 'Невірний email або пароль.'
+          : code === 'auth/too-many-requests'
+          ? 'Забагато спроб входу. Спробуйте пізніше.'
+          : err?.message || 'Не вдалося увійти. Перевірте email та пароль.';
       setError(message);
       setLoading(false);
     }

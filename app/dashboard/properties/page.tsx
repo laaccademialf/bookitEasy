@@ -1,10 +1,21 @@
 'use client';
 
 import { useContext, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { AuthContext } from '../../providers';
 import { createProperty, deleteProperty, getHostProperties, updateProperty, type Property } from '../../../lib/properties';
+import { updateUserProfileData } from '../../../lib/auth';
 import { uploadPropertyImages } from '../../../lib/storage';
-import { Edit3, PlusCircle, Trash2 } from 'lucide-react';
+import { Edit3, ExternalLink, PlusCircle, Trash2 } from 'lucide-react';
+
+function makeHostUsername(source: string) {
+  return source
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 32) || `host-${Date.now().toString().slice(-6)}`;
+}
 
 export default function PropertiesPage() {
   const { profile, loading } = useContext(AuthContext);
@@ -23,16 +34,52 @@ export default function PropertiesPage() {
   const [imageFiles, setImageFiles] = useState<FileList | null>(null);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState('');
+  const [publicHostUsername, setPublicHostUsername] = useState('');
+  const [ensuringHostUsername, setEnsuringHostUsername] = useState(false);
 
   useEffect(() => {
     const loadProperties = async () => {
       if (!profile?.uid) return;
-      const data = await getHostProperties(profile.uid);
-      setProperties(data);
+      try {
+        const data = await getHostProperties(profile.uid);
+        setProperties(data);
+      } catch {
+        setStatus('Не вдалося завантажити обʼєкти. Перевірте доступ до бази даних.');
+      }
     };
 
     loadProperties();
   }, [profile]);
+
+  useEffect(() => {
+    if (!profile || profile.role === 'client') return;
+    if (publicHostUsername) return;
+
+    const ensureHostUsername = async () => {
+      const fallback = makeHostUsername(profile.hostUsername || profile.email || profile.name || 'host');
+      if (profile.hostUsername) {
+        setPublicHostUsername(profile.hostUsername);
+        return;
+      }
+
+      try {
+        setEnsuringHostUsername(true);
+        await updateUserProfileData(profile.uid, {
+          email: profile.email,
+          name: profile.name,
+          role: profile.role,
+          hostUsername: fallback,
+        });
+        setPublicHostUsername(fallback);
+      } catch {
+        setPublicHostUsername(fallback);
+      } finally {
+        setEnsuringHostUsername(false);
+      }
+    };
+
+    ensureHostUsername();
+  }, [profile, publicHostUsername]);
 
   const resetForm = () => {
     setEditingId(null);
@@ -63,10 +110,15 @@ export default function PropertiesPage() {
 
   const handleDelete = async (propertyId: string | undefined) => {
     if (!propertyId) return;
-    await deleteProperty(propertyId);
-    setProperties(properties.filter((item) => item.id !== propertyId));
-    setStatus('Властивість видалено');
-    setTimeout(() => setStatus(''), 2000);
+    try {
+      await deleteProperty(propertyId);
+      setProperties(properties.filter((item) => item.id !== propertyId));
+      setStatus('Властивість видалено');
+    } catch {
+      setStatus('Не вдалося видалити обʼєкт. Спробуйте ще раз.');
+    } finally {
+      setTimeout(() => setStatus(''), 2500);
+    }
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -87,29 +139,45 @@ export default function PropertiesPage() {
       amenities: form.amenities.split(',').map((item) => item.trim()).filter(Boolean),
     };
 
-    if (editingId) {
-      if (imageFiles) {
-        const uploadedUrls = await uploadPropertyImages(editingId, imageFiles);
-        propertyPayload.images = [...existingImages, ...uploadedUrls];
+    try {
+      if (editingId) {
+        if (imageFiles) {
+          const uploadedUrls = await uploadPropertyImages(editingId, imageFiles);
+          propertyPayload.images = [...existingImages, ...uploadedUrls];
+        }
+
+        await updateProperty(editingId, propertyPayload);
+        setProperties((current) => current.map((item) => (item.id === editingId ? { ...item, ...propertyPayload } : item)));
+        setStatus('Властивість оновлено');
+      } else {
+        const newId = await createProperty(propertyPayload);
+        if (imageFiles) {
+          try {
+            const uploadedUrls = await uploadPropertyImages(newId, imageFiles);
+            propertyPayload.images = uploadedUrls;
+            await updateProperty(newId, { images: uploadedUrls });
+          } catch {
+            setStatus('Обʼєкт створено, але фото не завантажились. Спробуйте додати фото при редагуванні.');
+          }
+        }
+        setProperties((current) => [{ id: newId, ...propertyPayload }, ...current]);
+        setStatus((currentStatus) =>
+          currentStatus || 'Властивість додано. Посилання хоста для клієнта згенеровано нижче.'
+        );
       }
 
-      await updateProperty(editingId, propertyPayload);
-      setProperties((current) => current.map((item) => (item.id === editingId ? { ...item, ...propertyPayload } : item)));
-      setStatus('Властивість оновлено');
-    } else {
-      const newId = await createProperty(propertyPayload);
-      if (imageFiles) {
-        const uploadedUrls = await uploadPropertyImages(newId, imageFiles);
-        propertyPayload.images = uploadedUrls;
-        await updateProperty(newId, { images: uploadedUrls });
+      resetForm();
+    } catch (error: any) {
+      const code = error?.code ? String(error.code) : '';
+      if (code === 'permission-denied') {
+        setStatus('Немає прав на створення/оновлення обʼєкта. Перевірте роль орендодавця.');
+      } else {
+        setStatus('Не вдалося зберегти обʼєкт. Спробуйте ще раз.');
       }
-      setProperties((current) => [{ id: newId, ...propertyPayload }, ...current]);
-      setStatus('Властивість додано');
+    } finally {
+      setSaving(false);
+      setTimeout(() => setStatus(''), 3000);
     }
-
-    resetForm();
-    setSaving(false);
-    setTimeout(() => setStatus(''), 2000);
   };
 
   if (loading) {
@@ -140,6 +208,24 @@ export default function PropertiesPage() {
             <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-4 py-2 text-sm text-slate-700">
               <PlusCircle className="h-5 w-5 text-sky-500" /> Додати нову
             </div>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm text-slate-600">Публічна сторінка орендодавця (для клієнтів):</p>
+            {publicHostUsername ? (
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <code className="rounded-lg bg-white px-3 py-2 text-sm text-slate-800">/host/{publicHostUsername}</code>
+                <Link
+                  href={`/host/${publicHostUsername}`}
+                  target="_blank"
+                  className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700"
+                >
+                  Відкрити як клієнт <ExternalLink className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-slate-500">{ensuringHostUsername ? 'Генеруємо посилання...' : 'Посилання ще генерується...'}</p>
+            )}
           </div>
         </div>
 
@@ -265,7 +351,7 @@ export default function PropertiesPage() {
                   <p className="mt-2 text-sm text-slate-400">Завантажено {existingImages.length} фото</p>
                 )}
               </div>
-              {status && <p className="text-sm text-sky-300">{status}</p>}
+              {status && <p className="text-sm text-slate-700">{status}</p>}
               <button
                 type="submit"
                 disabled={saving}

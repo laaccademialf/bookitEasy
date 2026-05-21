@@ -59,7 +59,7 @@ export async function registerUser(
 }
 
 export async function signInUser(email: string, password: string) {
-  return signInWithEmailAndPassword(auth, email, password);
+  return signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
 }
 
 export async function signOutUser() {
@@ -143,19 +143,26 @@ export interface CreateUserByAdminPayload {
 }
 
 export async function createUserByAdmin(payload: CreateUserByAdminPayload) {
+  const normalizedEmail = payload.email.trim().toLowerCase();
   const appName = `bookiteasy-admin-create-${Date.now()}`;
   const secondaryApp = initializeApp(getFirebaseClientConfig(), appName);
   const secondaryAuth = getAuth(secondaryApp);
 
   try {
-    const credential = await createUserWithEmailAndPassword(secondaryAuth, payload.email, payload.password);
+    const credential = await createUserWithEmailAndPassword(secondaryAuth, normalizedEmail, payload.password);
     const uid = credential.user.uid;
 
-    await createUserDoc(uid, payload.email, payload.name, payload.role, payload.hostUsername ?? '');
+    try {
+      await createUserDoc(uid, normalizedEmail, payload.name, payload.role, payload.hostUsername ?? '');
+    } catch (error) {
+      // Prevent partially-created accounts when Firestore write fails.
+      await credential.user.delete().catch(() => undefined);
+      throw error;
+    }
 
     return {
       uid,
-      email: payload.email,
+      email: normalizedEmail,
       name: payload.name,
       role: payload.role,
       hostUsername: payload.hostUsername ?? '',

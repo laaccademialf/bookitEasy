@@ -1,25 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { AuthContext } from '../../providers';
 import { fetchUsers, type UserProfile } from '../../../lib/auth';
 import { getPublicProperties, type Property } from '../../../lib/properties';
 
 export default function AdminPropertiesPage() {
-  const router = useRouter();
   const authContext = useContext(AuthContext as unknown as React.Context<any>);
   const { profile, loading } = authContext as any;
   const [properties, setProperties] = useState<Property[]>([]);
   const [hosts, setHosts] = useState<Record<string, UserProfile>>({});
   const [search, setSearch] = useState('');
   const [loadError, setLoadError] = useState('');
-
-  useEffect(() => {
-    router.prefetch('/admin');
-    router.prefetch('/admin/accounts');
-  }, [router]);
 
   useEffect(() => {
     if (profile?.role !== 'admin') return;

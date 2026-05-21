@@ -64,7 +64,7 @@ export default function HostPage({ params }: HostPageProps) {
               <p className="mt-3 text-slate-600">{property.description}</p>
               <div className="mt-4 flex items-center justify-between text-sm text-slate-500">
                 <span>від {property.pricePerNight.toLocaleString('uk-UA')} грн / ніч</span>
-                <Link href="/" className="text-sky-500 hover:text-sky-600">Переглянути</Link>
+                <Link href={`/book/${property.id}`} className="text-sky-500 hover:text-sky-600">Переглянути</Link>
               </div>
             </article>
           ))}
