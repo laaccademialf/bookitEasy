@@ -1,5 +1,13 @@
 import { deleteApp, initializeApp } from 'firebase/app';
-import { createUserWithEmailAndPassword, getAuth, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import {
+  createUserWithEmailAndPassword,
+  getAuth,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signOut,
+  updateEmail,
+  updatePassword,
+} from 'firebase/auth';
 import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 import { auth, firestore } from './firebase';
 
@@ -11,7 +19,16 @@ export interface UserProfile {
   role: UserRole;
   name: string;
   hostUsername?: string;
+  subscriptionPlan?: 'starter' | 'pro' | 'enterprise';
+  subscriptionStatus?: 'active' | 'paused' | 'canceled';
+  subscriptionRenewAt?: string;
   createdAt: any;
+}
+
+function nextMonthDateString() {
+  const date = new Date();
+  date.setMonth(date.getMonth() + 1);
+  return date.toISOString().slice(0, 10);
 }
 
 const HOST_PUBLIC_KEY_PATTERN = /^h-[a-z0-9]{12}$/;
@@ -84,6 +101,13 @@ export async function registerUser(
     name,
     role,
     hostUsername: safeHostUsername,
+    ...(role === 'host'
+      ? {
+          subscriptionPlan: 'starter' as const,
+          subscriptionStatus: 'active' as const,
+          subscriptionRenewAt: nextMonthDateString(),
+        }
+      : {}),
     createdAt: serverTimestamp(),
   };
 
@@ -146,15 +170,30 @@ export interface UpdateUserProfilePayload {
   name: string;
   role: UserRole;
   hostUsername?: string;
+  subscriptionPlan?: 'starter' | 'pro' | 'enterprise';
+  subscriptionStatus?: 'active' | 'paused' | 'canceled';
+  subscriptionRenewAt?: string;
 }
 
 export async function updateUserProfileData(uid: string, payload: UpdateUserProfilePayload) {
-  await updateDoc(doc(firestore, 'users', uid), {
+  const nextData: Record<string, any> = {
     email: payload.email,
     name: payload.name,
     role: payload.role,
     hostUsername: payload.role === 'host' ? ensureSecureHostPublicKey(payload.hostUsername) : '',
-  });
+  };
+
+  if (payload.role === 'host') {
+    nextData.subscriptionPlan = payload.subscriptionPlan || 'starter';
+    nextData.subscriptionStatus = payload.subscriptionStatus || 'active';
+    nextData.subscriptionRenewAt = payload.subscriptionRenewAt || nextMonthDateString();
+  } else {
+    nextData.subscriptionPlan = '';
+    nextData.subscriptionStatus = '';
+    nextData.subscriptionRenewAt = '';
+  }
+
+  await updateDoc(doc(firestore, 'users', uid), nextData);
   resetUsersCache();
 }
 
@@ -165,6 +204,13 @@ export async function createUserDoc(uid: string, email: string, name: string, ro
     name,
     role,
     hostUsername: role === 'host' ? ensureSecureHostPublicKey(hostUsername) : '',
+    ...(role === 'host'
+      ? {
+          subscriptionPlan: 'starter' as const,
+          subscriptionStatus: 'active' as const,
+          subscriptionRenewAt: nextMonthDateString(),
+        }
+      : {}),
     createdAt: serverTimestamp(),
   };
 
@@ -209,4 +255,55 @@ export async function createUserByAdmin(payload: CreateUserByAdminPayload) {
     await signOut(secondaryAuth).catch(() => undefined);
     await deleteApp(secondaryApp).catch(() => undefined);
   }
+}
+
+export interface UpdateCurrentUserAccountPayload {
+  name: string;
+  email: string;
+  newPassword?: string;
+}
+
+export async function updateCurrentUserAccount(payload: UpdateCurrentUserAccountPayload) {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new Error('Користувач не авторизований');
+  }
+
+  const normalizedEmail = payload.email.trim().toLowerCase();
+
+  if (normalizedEmail && normalizedEmail !== (currentUser.email || '').toLowerCase()) {
+    await updateEmail(currentUser, normalizedEmail);
+  }
+
+  if (payload.newPassword && payload.newPassword.trim().length > 0) {
+    await updatePassword(currentUser, payload.newPassword.trim());
+  }
+
+  await updateDoc(doc(firestore, 'users', currentUser.uid), {
+    name: payload.name,
+    email: normalizedEmail,
+  });
+
+  resetUsersCache();
+}
+
+export interface SubscriptionPayload {
+  subscriptionPlan: 'starter' | 'pro' | 'enterprise';
+  subscriptionStatus: 'active' | 'paused' | 'canceled';
+  subscriptionRenewAt: string;
+}
+
+export async function updateCurrentUserSubscription(payload: SubscriptionPayload) {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new Error('Користувач не авторизований');
+  }
+
+  await updateDoc(doc(firestore, 'users', currentUser.uid), {
+    subscriptionPlan: payload.subscriptionPlan,
+    subscriptionStatus: payload.subscriptionStatus,
+    subscriptionRenewAt: payload.subscriptionRenewAt,
+  });
+
+  resetUsersCache();
 }

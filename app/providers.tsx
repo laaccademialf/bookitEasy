@@ -18,6 +18,9 @@ interface UserProfile {
   role: 'client' | 'host' | 'admin';
   name: string;
   hostUsername?: string;
+  subscriptionPlan?: 'starter' | 'pro' | 'enterprise';
+  subscriptionStatus?: 'active' | 'paused' | 'canceled';
+  subscriptionRenewAt?: string;
 }
 
 interface AuthContextValue {

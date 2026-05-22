@@ -24,6 +24,12 @@ const emptyForm = {
   hostUsername: '',
 };
 
+function nextMonthDateString() {
+  const date = new Date();
+  date.setMonth(date.getMonth() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
 export default function AdminAccountsPage() {
   const authContext = useContext(AuthContext as unknown as React.Context<any>);
   const { profile, loading } = authContext as any;
@@ -47,9 +53,13 @@ export default function AdminAccountsPage() {
           if (user.role !== 'host') return user;
 
           const safeHostUsername = ensureSecureHostPublicKey(user.hostUsername);
-          return safeHostUsername === user.hostUsername
-            ? user
-            : { ...user, hostUsername: safeHostUsername };
+          return {
+            ...user,
+            hostUsername: safeHostUsername,
+            subscriptionPlan: user.subscriptionPlan || 'starter',
+            subscriptionStatus: user.subscriptionStatus || 'active',
+            subscriptionRenewAt: user.subscriptionRenewAt || nextMonthDateString(),
+          };
         });
 
         setUsers(normalizedUsers);
@@ -128,6 +138,9 @@ export default function AdminAccountsPage() {
           name: createdUser.name,
           role: createdUser.role,
           hostUsername: createdUser.hostUsername,
+          subscriptionPlan: createdUser.role === 'host' ? 'starter' : undefined,
+          subscriptionStatus: createdUser.role === 'host' ? 'active' : undefined,
+          subscriptionRenewAt: createdUser.role === 'host' ? nextMonthDateString() : undefined,
           createdAt: new Date(),
         },
         ...current,
@@ -166,6 +179,25 @@ export default function AdminAccountsPage() {
           ...user,
           role,
           hostUsername: fallbackHostUsername,
+          subscriptionPlan: role === 'host' ? user.subscriptionPlan || 'starter' : undefined,
+          subscriptionStatus: role === 'host' ? user.subscriptionStatus || 'active' : undefined,
+          subscriptionRenewAt: role === 'host' ? user.subscriptionRenewAt || nextMonthDateString() : undefined,
+        };
+      }),
+    );
+  };
+
+  const handleSubscriptionChange = (
+    uid: string,
+    field: 'subscriptionPlan' | 'subscriptionStatus' | 'subscriptionRenewAt',
+    value: string,
+  ) => {
+    setUsers((current) =>
+      current.map((user) => {
+        if (user.uid !== uid) return user;
+        return {
+          ...user,
+          [field]: value,
         };
       }),
     );
@@ -187,6 +219,9 @@ export default function AdminAccountsPage() {
         name: user.name,
         role: user.role,
         hostUsername: safeHostUsername,
+        subscriptionPlan: user.subscriptionPlan,
+        subscriptionStatus: user.subscriptionStatus,
+        subscriptionRenewAt: user.subscriptionRenewAt,
       });
       setUsers((current) =>
         current.map((item) => (item.uid === user.uid ? { ...item, hostUsername: safeHostUsername } : item)),
@@ -263,92 +298,256 @@ export default function AdminAccountsPage() {
               />
             </div>
 
-            <div className="mt-5 space-y-4">
+            <div className="mt-5">
               {filteredUsers.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">Користувачів не знайдено</p>
               ) : (
-                filteredUsers.map((user) => (
-                  <article key={user.uid} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="grid gap-3 lg:grid-cols-5">
-                      <input
-                        value={user.name}
-                        onChange={(event) => handleFieldChange(user.uid, 'name', event.target.value)}
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
-                      />
-                      <input
-                        value={user.email}
-                        onChange={(event) => handleFieldChange(user.uid, 'email', event.target.value)}
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
-                      />
-                      <select
-                        value={user.role}
-                        onChange={(event) => handleRoleChange(user.uid, event.target.value as UserProfile['role'])}
-                        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
-                      >
-                        <option value="client">Клієнт</option>
-                        <option value="host">Орендодавець</option>
-                        <option value="admin">Адміністратор</option>
-                      </select>
-                      {user.role === 'host' ? (
-                        <div className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900">
-                          <span className="truncate font-medium">{user.hostUsername || ensureSecureHostPublicKey(user.hostUsername)}</span>
+                <>
+                  <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 md:block">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-slate-100 text-xs uppercase tracking-wider text-slate-500">
+                        <tr>
+                          <th className="px-3 py-2 text-left">Ім'я</th>
+                          <th className="px-3 py-2 text-left">Email</th>
+                          <th className="px-3 py-2 text-left">Роль</th>
+                          <th className="px-3 py-2 text-left">Host URL</th>
+                          <th className="px-3 py-2 text-left">Тариф</th>
+                          <th className="px-3 py-2 text-left">Статус</th>
+                          <th className="px-3 py-2 text-left">Списання</th>
+                          <th className="px-3 py-2 text-right">Дії</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredUsers.map((user) => (
+                          <tr key={user.uid} className="border-t border-slate-200 align-top">
+                            <td className="px-3 py-2">
+                              <input
+                                value={user.name}
+                                onChange={(event) => handleFieldChange(user.uid, 'name', event.target.value)}
+                                className="w-36 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm outline-none focus:border-sky-400"
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                value={user.email}
+                                onChange={(event) => handleFieldChange(user.uid, 'email', event.target.value)}
+                                className="w-52 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm outline-none focus:border-sky-400"
+                              />
+                              <p className="mt-1 text-[11px] text-slate-400">UID: {user.uid.slice(0, 14)}...</p>
+                            </td>
+                            <td className="px-3 py-2">
+                              <select
+                                value={user.role}
+                                onChange={(event) => handleRoleChange(user.uid, event.target.value as UserProfile['role'])}
+                                className="w-40 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm outline-none focus:border-sky-400"
+                              >
+                                <option value="client">Клієнт</option>
+                                <option value="host">Орендодавець</option>
+                                <option value="admin">Адміністратор</option>
+                              </select>
+                            </td>
+                            <td className="px-3 py-2">
+                              {user.role === 'host' && user.hostUsername ? (
+                                <div className="flex items-center gap-2">
+                                  <Link
+                                    href={`/host/${user.hostUsername}`}
+                                    target="_blank"
+                                    className={`inline-flex items-center rounded-lg border px-2.5 py-2 text-xs font-medium ${
+                                      isSecureHostPublicKey(user.hostUsername)
+                                        ? 'border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100'
+                                        : 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                                    }`}
+                                  >
+                                    /host/{user.hostUsername}
+                                  </Link>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRegenerateHostKey(user.uid)}
+                                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:bg-slate-100"
+                                    aria-label="Згенерувати новий ключ"
+                                  >
+                                    <RefreshCw className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-slate-400">-</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              {user.role === 'host' ? (
+                                <select
+                                  value={user.subscriptionPlan || 'starter'}
+                                  onChange={(event) =>
+                                    handleSubscriptionChange(user.uid, 'subscriptionPlan', event.target.value)
+                                  }
+                                  className="w-28 rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs outline-none focus:border-sky-400"
+                                >
+                                  <option value="starter">Starter</option>
+                                  <option value="pro">Pro</option>
+                                  <option value="enterprise">Enterprise</option>
+                                </select>
+                              ) : (
+                                <span className="text-xs text-slate-400">-</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              {user.role === 'host' ? (
+                                <select
+                                  value={user.subscriptionStatus || 'active'}
+                                  onChange={(event) =>
+                                    handleSubscriptionChange(user.uid, 'subscriptionStatus', event.target.value)
+                                  }
+                                  className="w-28 rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs outline-none focus:border-sky-400"
+                                >
+                                  <option value="active">Активна</option>
+                                  <option value="paused">Пауза</option>
+                                  <option value="canceled">Скас.</option>
+                                </select>
+                              ) : (
+                                <span className="text-xs text-slate-400">-</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              {user.role === 'host' ? (
+                                <input
+                                  type="date"
+                                  value={user.subscriptionRenewAt || ''}
+                                  onChange={(event) =>
+                                    handleSubscriptionChange(user.uid, 'subscriptionRenewAt', event.target.value)
+                                  }
+                                  className="w-36 rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs outline-none focus:border-sky-400"
+                                />
+                              ) : (
+                                <span className="text-xs text-slate-400">-</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleResetPassword(user)}
+                                  disabled={resettingUid === user.uid}
+                                  className="inline-flex items-center justify-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-70"
+                                >
+                                  <KeyRound className="h-3.5 w-3.5" />
+                                  {resettingUid === user.uid ? 'Надс...' : 'Пароль'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveUser(user)}
+                                  disabled={savingUid === user.uid}
+                                  className="inline-flex items-center justify-center rounded-full bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-70"
+                                >
+                                  {savingUid === user.uid ? 'Збер...' : 'Зберегти'}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="space-y-3 md:hidden">
+                    {filteredUsers.map((user) => (
+                      <article key={user.uid} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="grid gap-2">
+                          <input
+                            value={user.name}
+                            onChange={(event) => handleFieldChange(user.uid, 'name', event.target.value)}
+                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
+                          />
+                          <input
+                            value={user.email}
+                            onChange={(event) => handleFieldChange(user.uid, 'email', event.target.value)}
+                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
+                          />
+                          <select
+                            value={user.role}
+                            onChange={(event) => handleRoleChange(user.uid, event.target.value as UserProfile['role'])}
+                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
+                          >
+                            <option value="client">Клієнт</option>
+                            <option value="host">Орендодавець</option>
+                            <option value="admin">Адміністратор</option>
+                          </select>
+                          {user.role === 'host' && (
+                            <>
+                              <div className="flex items-center gap-2">
+                                <Link
+                                  href={`/host/${user.hostUsername}`}
+                                  target="_blank"
+                                  className="inline-flex items-center rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-2 text-xs font-medium text-sky-700"
+                                >
+                                  /host/{user.hostUsername}
+                                </Link>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRegenerateHostKey(user.uid)}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:bg-slate-100"
+                                >
+                                  <RefreshCw className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                              <div className="grid gap-2 sm:grid-cols-3">
+                                <select
+                                  value={user.subscriptionPlan || 'starter'}
+                                  onChange={(event) =>
+                                    handleSubscriptionChange(user.uid, 'subscriptionPlan', event.target.value)
+                                  }
+                                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs outline-none focus:border-sky-400"
+                                >
+                                  <option value="starter">Starter</option>
+                                  <option value="pro">Pro</option>
+                                  <option value="enterprise">Enterprise</option>
+                                </select>
+                                <select
+                                  value={user.subscriptionStatus || 'active'}
+                                  onChange={(event) =>
+                                    handleSubscriptionChange(user.uid, 'subscriptionStatus', event.target.value)
+                                  }
+                                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs outline-none focus:border-sky-400"
+                                >
+                                  <option value="active">Активна</option>
+                                  <option value="paused">Пауза</option>
+                                  <option value="canceled">Скасована</option>
+                                </select>
+                                <input
+                                  type="date"
+                                  value={user.subscriptionRenewAt || ''}
+                                  onChange={(event) =>
+                                    handleSubscriptionChange(user.uid, 'subscriptionRenewAt', event.target.value)
+                                  }
+                                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs outline-none focus:border-sky-400"
+                                />
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => handleRegenerateHostKey(user.uid)}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:bg-slate-100"
-                            aria-label="Згенерувати новий ключ"
-                            title="Згенерувати новий ключ"
+                            onClick={() => handleResetPassword(user)}
+                            disabled={resettingUid === user.uid}
+                            className="inline-flex items-center justify-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-70"
                           >
-                            <RefreshCw className="h-3.5 w-3.5" />
+                            <KeyRound className="h-3.5 w-3.5" />
+                            {resettingUid === user.uid ? 'Надсилання...' : 'Пароль'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveUser(user)}
+                            disabled={savingUid === user.uid}
+                            className="inline-flex items-center justify-center rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-70"
+                          >
+                            {savingUid === user.uid ? 'Збереження...' : 'Зберегти'}
                           </button>
                         </div>
-                      ) : (
-                        <div className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-xs text-slate-500">host username не потрібен</div>
-                      )}
-
-                      {user.role === 'host' && user.hostUsername ? (
-                        <Link
-                          href={`/host/${user.hostUsername}`}
-                          target="_blank"
-                          className={`inline-flex items-center rounded-lg border px-3 py-2 text-sm font-medium ${
-                            isSecureHostPublicKey(user.hostUsername)
-                              ? 'border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100'
-                              : 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
-                          }`}
-                        >
-                          /host/{user.hostUsername}
-                        </Link>
-                      ) : (
-                        <div className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-xs text-slate-500">
-                          Публічне посилання доступне для ролі host
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                      <p className="text-xs text-slate-500">UID: {user.uid}</p>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleResetPassword(user)}
-                          disabled={resettingUid === user.uid}
-                          className="inline-flex items-center justify-center gap-2 rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-70"
-                        >
-                          <KeyRound className="h-4 w-4" />
-                          {resettingUid === user.uid ? 'Надсилання...' : 'Змінити пароль'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleSaveUser(user)}
-                          disabled={savingUid === user.uid}
-                          className="inline-flex items-center justify-center rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-70"
-                        >
-                          {savingUid === user.uid ? 'Збереження...' : 'Зберегти'}
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                ))
+                      </article>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
           </section>
