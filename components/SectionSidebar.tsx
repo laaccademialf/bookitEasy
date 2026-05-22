@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LucideIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LucideIcon, Menu, X } from 'lucide-react';
 
 export interface SectionSidebarItem {
   href: string;
@@ -40,42 +40,26 @@ export default function SectionSidebar({
 
   const desktopSidebarClass = isOpen ? (isCollapsed ? 'lg:w-20' : 'lg:w-72') : 'lg:w-0';
 
-  useEffect(() => {
-    const handleToggle = () => {
-      if (window.innerWidth >= 1024) {
-        onToggleOpen();
-      } else {
-        setMobileOpen((current) => !current);
-      }
-    };
-
-    const handleCollapse = () => {
-      if (window.innerWidth >= 1024 && isOpen) {
-        onToggleCollapsed();
-      }
-    };
-
-    const handleCloseMobile = () => {
-      setMobileOpen(false);
-    };
-
-    window.addEventListener('bookiteasy:sidebar-toggle', handleToggle);
-    window.addEventListener('bookiteasy:sidebar-collapse-toggle', handleCollapse);
-    window.addEventListener('bookiteasy:sidebar-mobile-close', handleCloseMobile);
-
-    return () => {
-      window.removeEventListener('bookiteasy:sidebar-toggle', handleToggle);
-      window.removeEventListener('bookiteasy:sidebar-collapse-toggle', handleCollapse);
-      window.removeEventListener('bookiteasy:sidebar-mobile-close', handleCloseMobile);
-    };
-  }, [isOpen, onToggleCollapsed, onToggleOpen]);
-
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
-
   return (
     <>
+      <button
+        type="button"
+        onClick={() => setMobileOpen((current) => !current)}
+        className="fixed left-3 top-[4.5rem] z-50 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-800 shadow lg:hidden"
+        aria-label={mobileOpen ? 'Закрити меню' : 'Відкрити меню'}
+      >
+        {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+      </button>
+
+      <button
+        type="button"
+        onClick={onToggleOpen}
+        className="fixed left-3 top-[4.5rem] z-50 hidden h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-800 shadow lg:inline-flex"
+        aria-label={isOpen ? 'Приховати меню' : 'Показати меню'}
+      >
+        {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+      </button>
+
       {mobileOpen && (
         <div
           className="fixed inset-0 z-40 bg-slate-900/40 lg:hidden"
@@ -89,14 +73,33 @@ export default function SectionSidebar({
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         } lg:translate-x-0`}
       >
-        {/* Header: show only when expanded */}
+        {/* Header: show only when expanded; in collapsed state keep the expand chevron */}
         <div className={`${!isOpen ? 'lg:hidden' : ''}`}>
-          {!isCollapsed && (
+          {isCollapsed ? (
+            <div className="hidden items-center justify-center px-2 lg:flex">
+              <button
+                type="button"
+                onClick={onToggleCollapsed}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100"
+                aria-label="Розгорнути меню"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
             <div className="flex items-start justify-between gap-2 px-4">
               <div className="min-w-0">
                 <p className="text-xs uppercase tracking-widest text-slate-400">{title}</p>
                 {subtitle && <p className="mt-1 truncate text-sm text-slate-500">{subtitle}</p>}
               </div>
+              <button
+                type="button"
+                onClick={onToggleCollapsed}
+                className="hidden shrink-0 rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-100 lg:inline-flex"
+                aria-label="Згорнути меню"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
             </div>
           )}
         </div>

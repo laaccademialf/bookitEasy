@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useContext, useEffect, useMemo, useState } from 'react';
-import { ChevronsLeftRight, CircleUserRound, Menu, PanelLeft, X } from 'lucide-react';
+import { CircleUserRound, Menu, X } from 'lucide-react';
 import { AuthContext } from '../app/providers';
 import { signOutUser } from '../lib/auth';
 
@@ -13,9 +13,17 @@ export function TopNav() {
   const { user, profile, loading } = useContext(AuthContext);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [sidebarOffset, setSidebarOffset] = useState(0);
 
   const isSectionPage = pathname.startsWith('/admin') || pathname.startsWith('/dashboard');
   const hasProfile = Boolean(user && profile);
+  const sidebarOffsetClass = isSectionPage
+    ? sidebarOffset >= 280
+      ? 'lg:ml-72'
+      : sidebarOffset >= 70
+      ? 'lg:ml-20'
+      : 'lg:ml-0'
+    : 'lg:ml-0';
 
   const showSubscription = useMemo(() => {
     if (!profile) return false;
@@ -27,14 +35,6 @@ export function TopNav() {
     setMobileOpen(false);
     setProfileMenuOpen(false);
     router.push('/');
-  };
-
-  const triggerSidebarToggle = () => {
-    window.dispatchEvent(new Event('bookiteasy:sidebar-toggle'));
-  };
-
-  const triggerSidebarCollapse = () => {
-    window.dispatchEvent(new Event('bookiteasy:sidebar-collapse-toggle'));
   };
 
   // Host & admin nav items live in their section sidebars; top nav stays minimal.
@@ -52,33 +52,31 @@ export function TopNav() {
     setProfileMenuOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    const handleSidebarOffset = (event: Event) => {
+      const custom = event as CustomEvent<{ width?: number }>;
+      setSidebarOffset(custom.detail?.width || 0);
+    };
+
+    window.addEventListener('bookiteasy:layout-sidebar-width', handleSidebarOffset);
+
+    return () => {
+      window.removeEventListener('bookiteasy:layout-sidebar-width', handleSidebarOffset);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isSectionPage) {
+      setSidebarOffset(0);
+    }
+  }, [isSectionPage]);
+
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/50 bg-white/85 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4 lg:px-10">
+      <div
+        className={`flex w-full items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4 lg:pr-10 lg:pl-6 lg:transition-[margin] lg:duration-300 ${sidebarOffsetClass}`}
+      >
         <div className="flex items-center gap-2">
-          {isSectionPage && (
-            <>
-              <button
-                type="button"
-                onClick={triggerSidebarToggle}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100"
-                aria-label="Відкрити або закрити бокову панель"
-                title="Відкрити або закрити бокову панель"
-              >
-                <PanelLeft className="h-5 w-5" />
-              </button>
-              <button
-                type="button"
-                onClick={triggerSidebarCollapse}
-                className="hidden h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-100 lg:inline-flex"
-                aria-label="Згорнути або розгорнути бокову панель"
-                title="Згорнути або розгорнути бокову панель"
-              >
-                <ChevronsLeftRight className="h-4 w-4" />
-              </button>
-            </>
-          )}
-
           <Link href="/" className="text-lg font-semibold text-slate-900 sm:text-xl">
             BookItEasy
           </Link>
@@ -163,15 +161,6 @@ export function TopNav() {
       {mobileOpen && (
         <div className="border-t border-slate-200 bg-white md:hidden">
           <div className="space-y-2 px-4 py-4">
-            {isSectionPage && (
-              <button
-                type="button"
-                onClick={triggerSidebarToggle}
-                className="block w-full rounded-xl border border-slate-200 px-3 py-2 text-left text-sm font-medium text-slate-800 hover:bg-slate-100"
-              >
-                Відкрити/закрити бокову панель
-              </button>
-            )}
             {menuItems.map((item) => (
               <Link
                 key={item.href}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import HostSidebar from '../../components/HostSidebar';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -8,6 +8,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const desktopPadding = !isSidebarOpen ? 'lg:pl-0' : isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72';
+
+  useEffect(() => {
+    const width = !isSidebarOpen ? 0 : isSidebarCollapsed ? 80 : 288;
+    window.dispatchEvent(new CustomEvent('bookiteasy:layout-sidebar-width', { detail: { width } }));
+
+    return () => {
+      window.dispatchEvent(new CustomEvent('bookiteasy:layout-sidebar-width', { detail: { width: 0 } }));
+    };
+  }, [isSidebarCollapsed, isSidebarOpen]);
 
   return (
     <div className="min-h-screen">
