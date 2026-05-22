@@ -157,40 +157,39 @@ export default function CalendarPage() {
 
   if (!profile || profile.role === 'client') {
     return (
-      <main className="min-h-screen bg-[#070c18] text-slate-100">
+      <main className="min-h-screen bg-slate-50 text-slate-900">
         <div className="mx-auto max-w-4xl px-6 py-20 text-center">
-          <h1 className="text-3xl font-semibold">Доступ заборонено</h1>
-          <p className="mt-4 text-slate-400">Цей розділ доступний тільки для орендодавців.</p>
+          <h1 className="text-3xl font-semibold text-slate-900">Доступ заборонено</h1>
+          <p className="mt-4 text-slate-600">Цей розділ доступний тільки для орендодавців.</p>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen overflow-x-clip bg-[#070c18] text-slate-100">
+    <main className="min-h-screen overflow-x-clip bg-slate-50 text-slate-900">
       <PageBanner
         title="Календар бронювань"
-        variant="dark"
         actions={
           <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
             <button
               type="button"
               onClick={() => setRangeStart((current) => addDays(current, -7))}
-              className="rounded-full border border-white/20 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-white/35"
+              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-sky-400"
             >
               -7 днів
             </button>
             <button
               type="button"
               onClick={() => setRangeStart(startOfDay(new Date()))}
-              className="rounded-full border border-white/20 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-white/35"
+              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-sky-400"
             >
               Сьогодні
             </button>
             <button
               type="button"
               onClick={() => setRangeStart((current) => addDays(current, 7))}
-              className="rounded-full border border-white/20 px-4 py-2 text-xs font-semibold text-slate-200 transition hover:border-white/35"
+              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-sky-400"
             >
               +7 днів
             </button>
@@ -200,13 +199,13 @@ export default function CalendarPage() {
 
       <div className="w-full px-3 py-5 sm:px-6 sm:py-8 lg:px-6">
         <div className="grid gap-4 sm:gap-6 lg:grid-cols-[1.5fr_0.7fr]">
-          <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-4 shadow-xl sm:rounded-[2rem] sm:p-6">
+          <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-md sm:rounded-[2rem] sm:p-6">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Діаграма бронювань</p>
-                <h2 className="mt-2 text-xl font-semibold text-white sm:text-2xl">Об'єкти зліва, дати зверху</h2>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Діаграма бронювань</p>
+                <h2 className="mt-2 text-xl font-semibold text-slate-900 sm:text-2xl">Об'єкти зліва, дати зверху</h2>
               </div>
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-slate-600">
                 Період: {toISODate(rangeStart)} - {toISODate(rangeEnd)}
               </p>
             </div>
@@ -214,7 +213,7 @@ export default function CalendarPage() {
             {isMobileView ? (
               <div className="mt-5 space-y-3">
                 {rows.length === 0 ? (
-                  <p className="rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-6 text-sm text-slate-400">
+                  <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
                     Додайте об'єкти, щоб бачити завантаження в календарі.
                   </p>
                 ) : (
@@ -224,8 +223,8 @@ export default function CalendarPage() {
                       .slice(0, 4);
 
                     return (
-                      <article key={row.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-                        <p className="truncate text-sm font-semibold text-slate-100">{row.title}</p>
+                      <article key={row.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <p className="truncate text-sm font-semibold text-slate-900">{row.title}</p>
                         <div className="mt-3 space-y-2">
                           {propertyBookings.length === 0 ? (
                             <p className="text-xs text-slate-500">Немає бронювань у поточному періоді.</p>
@@ -238,7 +237,7 @@ export default function CalendarPage() {
                             ))
                           )}
                         </div>
-                        <p className="mt-3 text-xs text-slate-400">Заблоковано дат: {row.blockedIndices.length}</p>
+                        <p className="mt-3 text-xs text-slate-500">Заблоковано дат: {row.blockedIndices.length}</p>
                       </article>
                     );
                   })
@@ -246,43 +245,46 @@ export default function CalendarPage() {
               </div>
             ) : (
               <div className="mt-5 overflow-x-auto pb-2">
-                <div className="min-w-[980px] rounded-2xl border border-slate-800 bg-slate-950/60">
+                <div className="min-w-[980px] rounded-2xl border border-slate-200 bg-slate-50">
                   <div
-                    className="grid border-b border-slate-800"
+                    className="grid border-b border-slate-200"
                     style={{ gridTemplateColumns: `220px repeat(${DAYS_VISIBLE}, minmax(50px, 1fr))` }}
                   >
-                    <div className="sticky left-0 z-20 border-r border-slate-800 bg-slate-950/95 px-4 py-3 text-sm font-semibold text-slate-200">
+                    <div className="sticky left-0 z-20 border-r border-slate-200 bg-white/95 px-4 py-3 text-sm font-semibold text-slate-700">
                       Об'єкт
                     </div>
-                    {rangeDays.map((day) => (
-                      <div key={day.toISOString()} className="border-r border-slate-800/80 px-2 py-3 text-center last:border-r-0">
+                    {rangeDays.map((day) => {
+                      const isToday = toISODate(day) === toISODate(new Date());
+
+                      return (
+                      <div key={day.toISOString()} className={`border-r border-slate-200 px-2 py-3 text-center last:border-r-0 ${isToday ? 'bg-sky-50' : ''}`}>
                         <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500">
                           {new Intl.DateTimeFormat('uk-UA', { weekday: 'short' }).format(day)}
                         </p>
-                        <p className="mt-1 text-xs font-semibold text-slate-200">
+                        <p className={`mt-1 text-xs font-semibold ${isToday ? 'text-sky-700' : 'text-slate-800'}`}>
                           {new Intl.DateTimeFormat('uk-UA', { day: '2-digit', month: '2-digit' }).format(day)}
                         </p>
                       </div>
-                    ))}
+                    )})}
                   </div>
 
                   {rows.length === 0 ? (
-                    <p className="px-4 py-8 text-sm text-slate-400">Додайте об'єкти, щоб бачити завантаження в календарі.</p>
+                    <p className="px-4 py-8 text-sm text-slate-500">Додайте об'єкти, щоб бачити завантаження в календарі.</p>
                   ) : (
                     rows.map((row) => (
                       <div
                         key={row.id}
-                        className="grid border-b border-slate-800/80 last:border-b-0"
+                        className="grid border-b border-slate-200 last:border-b-0"
                         style={{ gridTemplateColumns: `220px repeat(${DAYS_VISIBLE}, minmax(50px, 1fr))` }}
                       >
-                        <div className="sticky left-0 z-10 flex items-center border-r border-slate-800 bg-slate-950/95 px-4 py-4">
-                          <p className="line-clamp-2 text-sm text-slate-200">{row.title}</p>
+                        <div className="sticky left-0 z-10 flex items-center border-r border-slate-200 bg-white/95 px-4 py-4">
+                          <p className="line-clamp-2 text-sm text-slate-700">{row.title}</p>
                         </div>
 
                         <div className="relative h-16" style={{ gridColumn: `2 / span ${DAYS_VISIBLE}` }}>
                           <div className="pointer-events-none absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${DAYS_VISIBLE}, minmax(50px, 1fr))` }}>
                             {rangeDays.map((day) => (
-                              <div key={`${row.id}-${day.toISOString()}-bg`} className="border-r border-slate-800/70 last:border-r-0" />
+                              <div key={`${row.id}-${day.toISOString()}-bg`} className="border-r border-slate-200 last:border-r-0" />
                             ))}
                           </div>
 
@@ -302,7 +304,7 @@ export default function CalendarPage() {
                           <div className="pointer-events-none absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${DAYS_VISIBLE}, minmax(50px, 1fr))` }}>
                             {row.blockedIndices.map((index) => (
                               <div key={`${row.id}-blocked-${index}`} style={{ gridColumn: `${index + 1}` }} className="flex items-center justify-center">
-                                <span className="h-2 w-2 rounded-full bg-rose-400" title="Заблокована дата" />
+                                <span className="h-2.5 w-2.5 rounded-full bg-rose-500" title="Заблокована дата" />
                               </div>
                             ))}
                           </div>
@@ -314,22 +316,22 @@ export default function CalendarPage() {
               </div>
             )}
 
-            <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-slate-400">
-              <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-emerald-400" />Підтверджено</span>
-              <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-amber-400" />Очікує</span>
-              <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-rose-400" />Заблокована дата</span>
+            <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-slate-600">
+              <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-emerald-500" />Підтверджено</span>
+              <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-amber-500" />Очікує</span>
+              <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-rose-500" />Заблокована дата</span>
             </div>
           </section>
 
-          <section className="rounded-3xl border border-white/10 bg-slate-900/80 p-4 shadow-xl sm:rounded-[2rem] sm:p-6">
-            <h2 className="text-xl font-semibold text-white sm:text-2xl">Заблокувати дату</h2>
+          <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-md sm:rounded-[2rem] sm:p-6">
+            <h2 className="text-xl font-semibold text-slate-900 sm:text-2xl">Заблокувати дату</h2>
             <form onSubmit={handleBlockDate} className="mt-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300">Обрати об'єкт</label>
+                <label className="block text-sm font-medium text-slate-700">Обрати об'єкт</label>
                 <select
                   value={selectedProperty}
                   onChange={(event) => setSelectedProperty(event.target.value)}
-                  className="mt-2 w-full rounded-3xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none focus:border-sky-400"
+                  className="mt-2 w-full rounded-3xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400"
                 >
                   <option value="">Виберіть об'єкт</option>
                   {properties.map((property) => (
@@ -340,15 +342,15 @@ export default function CalendarPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-300">Дата</label>
+                <label className="block text-sm font-medium text-slate-700">Дата</label>
                 <input
                   type="date"
                   value={blockDate}
                   onChange={(event) => setBlockDate(event.target.value)}
-                  className="mt-2 w-full rounded-3xl border border-slate-700 bg-slate-950 px-4 py-3 text-slate-100 outline-none focus:border-sky-400"
+                  className="mt-2 w-full rounded-3xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400"
                 />
               </div>
-              {status && <p className="text-sm text-sky-300">{status}</p>}
+              {status && <p className="text-sm text-sky-700">{status}</p>}
               <button
                 type="submit"
                 className="w-full rounded-full bg-sky-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-sky-400"
@@ -357,16 +359,16 @@ export default function CalendarPage() {
               </button>
             </form>
 
-            <div className="mt-8 rounded-3xl border border-slate-800 bg-slate-950/80 p-4">
+            <div className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 p-4">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Поточні блокування</p>
+                <p className="text-sm uppercase tracking-[0.3em] text-slate-500">Поточні блокування</p>
                 <span className="text-xs text-slate-500">{blockedCount}</span>
               </div>
               <div className="mt-4 max-h-72 space-y-3 overflow-y-auto pr-1">
                 {properties.flatMap((property) =>
                   property.blockedDates?.map((date) => (
-                    <div key={`${property.id}-${date}`} className="rounded-2xl bg-slate-900/80 px-4 py-3 text-sm text-slate-300">
-                      <span className="font-semibold text-white">{property.title}</span> - {date}
+                    <div key={`${property.id}-${date}`} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                      <span className="font-semibold text-slate-900">{property.title}</span> - {date}
                     </div>
                   )) ?? [],
                 ).length === 0 ? (

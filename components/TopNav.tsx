@@ -3,9 +3,31 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useContext, useEffect, useMemo, useState } from 'react';
-import { CircleUserRound, PanelLeftClose, UserCircle2, X } from 'lucide-react';
+import { Bell, CircleUserRound, PanelLeftClose, UserCircle2, X } from 'lucide-react';
 import { AuthContext } from '../app/providers';
 import { signOutUser } from '../lib/auth';
+import { getHostBookings } from '../lib/bookings';
+import { getHostProperties } from '../lib/properties';
+
+type NotificationItem = {
+  id: string;
+  title: string;
+  description: string;
+  href: string;
+  unread: boolean;
+};
+
+function toLocalDate(value: string): Date {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function isoDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 export function TopNav() {
   const router = useRouter();
@@ -13,6 +35,9 @@ export function TopNav() {
   const { user, profile, loading } = useContext(AuthContext);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [sidebarOffset, setSidebarOffset] = useState(0);
 
   const isSectionPage = pathname.startsWith('/admin') || pathname.startsWith('/dashboard');
@@ -29,6 +54,11 @@ export function TopNav() {
     if (!profile) return false;
     return profile.role === 'host' || profile.role === 'admin';
   }, [profile]);
+
+  const unreadNotificationsCount = useMemo(
+    () => notifications.filter((item) => item.unread).length,
+    [notifications],
+  );
 
   const handleSignOut = async () => {
     await signOutUser();
@@ -49,12 +79,93 @@ export function TopNav() {
   useEffect(() => {
     setMobileOpen(false);
     setProfileMenuOpen(false);
+    setNotificationsOpen(false);
   }, [profile?.uid]);
 
   useEffect(() => {
     setMobileOpen(false);
     setProfileMenuOpen(false);
+    setNotificationsOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    const loadNotifications = async () => {
+      if (!profile?.uid || (profile.role !== 'host' && profile.role !== 'admin')) {
+        setNotifications([]);
+        return;
+      }
+
+      try {
+        setNotificationsLoading(true);
+
+        const [bookings, properties] = await Promise.all([
+          getHostBookings(profile.uid),
+          getHostProperties(profile.uid),
+        ]);
+
+        const propertyTitles = new Map(
+          properties.map((property) => [property.id || '', property.title]),
+        );
+
+        const today = new Date();
+        const tomorrow = new Date();
+        tomorrow.setDate(today.getDate() + 1);
+
+        const todayIso = isoDate(today);
+        const tomorrowIso = isoDate(tomorrow);
+
+        const computed = bookings
+          .filter((booking) => booking.status === 'confirmed')
+          .map((booking) => {
+            const title = propertyTitles.get(booking.propertyId) || 'Обʼєкт';
+            const startIso = isoDate(toLocalDate(booking.startDate));
+            const endIso = isoDate(toLocalDate(booking.endDate));
+
+            if (startIso === todayIso) {
+              return {
+                id: `checkin-today-${booking.id || booking.propertyId}`,
+                title: 'Сьогодні заселення',
+                description: `${title}: заїзд ${booking.startDate}`,
+                href: '/dashboard/calendar',
+                unread: true,
+              } as NotificationItem;
+            }
+
+            if (startIso === tomorrowIso) {
+              return {
+                id: `checkin-tomorrow-${booking.id || booking.propertyId}`,
+                title: 'Завтра заселення',
+                description: `${title}: заїзд ${booking.startDate}`,
+                href: '/dashboard/calendar',
+                unread: true,
+              } as NotificationItem;
+            }
+
+            if (todayIso >= startIso && todayIso <= endIso) {
+              return {
+                id: `occupied-now-${booking.id || booking.propertyId}`,
+                title: 'Обʼєкт заселений',
+                description: `${title}: ${booking.startDate} - ${booking.endDate}`,
+                href: '/dashboard/calendar',
+                unread: false,
+              } as NotificationItem;
+            }
+
+            return null;
+          })
+          .filter((item): item is NotificationItem => Boolean(item))
+          .slice(0, 8);
+
+        setNotifications(computed);
+      } catch {
+        setNotifications([]);
+      } finally {
+        setNotificationsLoading(false);
+      }
+    };
+
+    loadNotifications();
+  }, [profile]);
 
   useEffect(() => {
     const handleSidebarOffset = (event: Event) => {
@@ -84,6 +195,7 @@ export function TopNav() {
       if (!withinMenu && !withinTrigger) {
         setMobileOpen(false);
         setProfileMenuOpen(false);
+        setNotificationsOpen(false);
       }
     };
 
@@ -125,49 +237,103 @@ export function TopNav() {
           {loading ? (
             <span className="text-sm text-slate-500">Завантаження…</span>
           ) : user ? (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setProfileMenuOpen((current) => !current)}
-                data-topnav-profile-trigger="true"
-                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-50"
-                aria-label="Відкрити меню профілю"
-              >
-                <CircleUserRound className="h-4 w-4" />
-                <span className="max-w-[180px] truncate">{profile?.name || user.email || 'Користувач'}</span>
-              </button>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNotificationsOpen((current) => !current);
+                    setProfileMenuOpen(false);
+                  }}
+                  data-topnav-profile-trigger="true"
+                  className="relative inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50"
+                  aria-label="Відкрити центр сповіщень"
+                >
+                  <Bell className="h-4 w-4" />
+                  {unreadNotificationsCount > 0 && (
+                    <span className="absolute right-1.5 top-1.5 inline-flex h-2.5 w-2.5 rounded-full bg-rose-500" />
+                  )}
+                </button>
 
-              {profileMenuOpen && hasProfile && (
-                <div data-topnav-profile-menu="true" className="absolute right-0 mt-2 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
-                  <div className="border-b border-slate-200 px-4 py-3">
-                    <p className="truncate text-sm font-semibold text-slate-900">{profile?.name || user.email}</p>
-                    <p className="truncate text-xs text-slate-500">{profile?.email || user.email}</p>
+                {notificationsOpen && (
+                  <div data-topnav-profile-menu="true" className="absolute right-0 mt-2 w-80 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                    <div className="border-b border-slate-200 px-4 py-3">
+                      <p className="text-sm font-semibold text-slate-900">Центр сповіщень</p>
+                      <p className="text-xs text-slate-500">Заселення та важливі події</p>
+                    </div>
+                    <div className="max-h-80 overflow-y-auto p-2">
+                      {notificationsLoading ? (
+                        <p className="px-2 py-3 text-sm text-slate-500">Завантаження...</p>
+                      ) : notifications.length === 0 ? (
+                        <p className="px-2 py-3 text-sm text-slate-500">Нових сповіщень немає.</p>
+                      ) : (
+                        notifications.map((item) => (
+                          <Link
+                            key={item.id}
+                            href={item.href}
+                            onClick={() => setNotificationsOpen(false)}
+                            className="mb-1 block rounded-xl border border-slate-200 px-3 py-2.5 transition hover:bg-slate-50"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                              {item.unread ? <span className="mt-1 h-2 w-2 rounded-full bg-sky-500" /> : null}
+                            </div>
+                            <p className="mt-1 text-xs text-slate-600">{item.description}</p>
+                          </Link>
+                        ))
+                      )}
+                    </div>
                   </div>
-                  <div className="p-2">
-                    <Link
-                      href="/profile"
-                      className="block rounded-xl px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
-                    >
-                      Редагувати профіль
-                    </Link>
-                    {showSubscription && (
+                )}
+              </div>
+
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProfileMenuOpen((current) => !current);
+                    setNotificationsOpen(false);
+                  }}
+                  data-topnav-profile-trigger="true"
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-50"
+                  aria-label="Відкрити меню профілю"
+                >
+                  <CircleUserRound className="h-4 w-4" />
+                  <span className="max-w-[180px] truncate">{profile?.name || user.email || 'Користувач'}</span>
+                </button>
+
+                {profileMenuOpen && hasProfile && (
+                  <div data-topnav-profile-menu="true" className="absolute right-0 mt-2 w-56 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
+                    <div className="border-b border-slate-200 px-4 py-3">
+                      <p className="truncate text-sm font-semibold text-slate-900">{profile?.name || user.email}</p>
+                      <p className="truncate text-xs text-slate-500">{profile?.email || user.email}</p>
+                    </div>
+                    <div className="p-2">
                       <Link
-                        href="/profile/subscription"
+                        href="/profile"
                         className="block rounded-xl px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
                       >
-                        Моя підписка
+                        Редагувати профіль
                       </Link>
-                    )}
-                    <button
-                      type="button"
-                      onClick={handleSignOut}
-                      className="mt-1 block w-full rounded-xl px-3 py-2 text-left text-sm text-rose-600 transition hover:bg-rose-50"
-                    >
-                      Вийти
-                    </button>
+                      {showSubscription && (
+                        <Link
+                          href="/profile/subscription"
+                          className="block rounded-xl px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
+                        >
+                          Моя підписка
+                        </Link>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleSignOut}
+                        className="mt-1 block w-full rounded-xl px-3 py-2 text-left text-sm text-rose-600 transition hover:bg-rose-50"
+                      >
+                        Вийти
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           ) : (
             <Link
@@ -207,6 +373,28 @@ export function TopNav() {
               <>
                 <div className="rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-800">
                   {profile?.name || user.email}
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                  <p className="text-xs font-semibold text-slate-900">Центр сповіщень</p>
+                  {notificationsLoading ? (
+                    <p className="mt-1 text-xs text-slate-500">Завантаження...</p>
+                  ) : notifications.length === 0 ? (
+                    <p className="mt-1 text-xs text-slate-500">Немає нових подій</p>
+                  ) : (
+                    <div className="mt-2 space-y-1.5">
+                      {notifications.slice(0, 3).map((item) => (
+                        <Link
+                          key={item.id}
+                          href={item.href}
+                          onClick={() => setMobileOpen(false)}
+                          className="block rounded-lg bg-slate-50 px-2 py-1.5 text-xs text-slate-700"
+                        >
+                          <p className="font-semibold text-slate-900">{item.title}</p>
+                          <p className="mt-0.5 truncate">{item.description}</p>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <Link
                   href="/profile"
