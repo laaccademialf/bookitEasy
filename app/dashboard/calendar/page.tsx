@@ -4,6 +4,7 @@ import { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../../providers';
 import { addBlockedDate, getHostProperties, Property } from '../../../lib/properties';
 import { getHostBookings, Booking } from '../../../lib/bookings';
+import { PageBanner } from '../../../components/PageBanner';
 
 export default function CalendarPage() {
   const { profile, loading } = useContext(AuthContext);

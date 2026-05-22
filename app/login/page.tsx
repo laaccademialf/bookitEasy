@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getUserProfile, signInUser } from '../../lib/auth';
-import Link from 'next/link';
 
 const ADMIN_EMAILS = new Set(
   [
@@ -51,30 +50,30 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="mx-auto flex min-h-screen max-w-5xl items-center justify-center px-6 py-12 lg:px-10">
-        <div className="w-full rounded-[2.5rem] border border-slate-200 bg-white/95 p-6 shadow-[0_40px_120px_rgba(15,23,42,0.08)] md:p-10">
-          <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
-            <div className="rounded-[2rem] bg-slate-50 p-8">
+      <div className="mx-auto flex min-h-screen max-w-5xl items-center justify-center px-4 py-8 sm:px-6 sm:py-12 lg:px-10">
+        <div className="w-full rounded-3xl border border-slate-200 bg-white/95 p-5 shadow-[0_40px_120px_rgba(15,23,42,0.08)] sm:rounded-[2.5rem] sm:p-6 md:p-10">
+          <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
+            <div className="hidden rounded-[2rem] bg-slate-50 p-8 lg:block">
               <span className="inline-flex rounded-full bg-sky-100 px-4 py-2 text-sm font-semibold text-sky-700">
                 Ласкаво просимо до BookItEasy
               </span>
               <div className="mt-6">
-                <h1 className="text-4xl font-semibold tracking-tight text-slate-900">Увійдіть до кабінету</h1>
+                <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">Увійдіть до кабінету</h1>
                 <p className="mt-4 max-w-xl text-base leading-7 text-slate-600">
                   Вхід до системи для невідкладного керування бронюваннями, аналітикою й об’єктами.
                 </p>
               </div>
               <div className="mt-6 rounded-3xl bg-white p-6 text-sm text-slate-600 shadow-sm">
                 <p className="font-semibold text-slate-900">Порада</p>
-                <p className="mt-2">Увійдіть тим же email, що й при реєстрації. Якщо потрібен доступ адміністратора, використайте admin-акаунт.</p>
+                <p className="mt-2">Увійдіть тим email, який вам надав адміністратор. Реєстрація на платформі вимкнена.</p>
               </div>
             </div>
 
-            <div className="rounded-[2rem] bg-slate-950/95 p-8 text-slate-100 shadow-xl">
-              <h2 className="text-3xl font-semibold">Увійти</h2>
+            <div className="rounded-[2rem] bg-slate-950/95 p-6 text-slate-100 shadow-xl sm:p-8">
+              <h2 className="text-2xl font-semibold sm:text-3xl">Увійти</h2>
               <p className="mt-3 text-sm text-slate-400">Введіть email і пароль для доступу до вашого кабінету.</p>
 
-              <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+              <form onSubmit={handleSubmit} className="mt-6 space-y-4 sm:mt-8 sm:space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-slate-300">Email</label>
                   <input
@@ -82,7 +81,8 @@ export default function LoginPage() {
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
                     required
-                    className="mt-3 w-full rounded-3xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-500/20"
+                    autoComplete="email"
+                    className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-500/20 sm:mt-3 sm:rounded-3xl"
                   />
                 </div>
 
@@ -93,11 +93,12 @@ export default function LoginPage() {
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     required
-                    className="mt-3 w-full rounded-3xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-500/20"
+                    autoComplete="current-password"
+                    className="mt-2 w-full rounded-2xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-500/20 sm:mt-3 sm:rounded-3xl"
                   />
                 </div>
 
-                {error && <p className="rounded-3xl bg-rose-500/10 px-4 py-3 text-sm text-rose-500">{error}</p>}
+                {error && <p className="rounded-2xl bg-rose-500/10 px-4 py-3 text-sm text-rose-400 sm:rounded-3xl">{error}</p>}
 
                 <button
                   type="submit"
@@ -108,14 +109,8 @@ export default function LoginPage() {
                 </button>
               </form>
 
-              <p className="mt-6 text-center text-sm text-slate-400">
-                Немає акаунту?{' '}
-                <Link href="/signup" className="font-semibold text-sky-300 hover:text-sky-200">
-                  Зареєструйтеся
-                </Link>
-              </p>
-              <p className="mt-4 text-center text-xs uppercase tracking-[0.3em] text-slate-600/80">
-                Адмін: andrii.disha@gmail.com
+              <p className="mt-6 text-center text-xs text-slate-500">
+                Доступ надається адміністратором. Якщо ви не отримали облікові дані — зверніться до власника платформи.
               </p>
             </div>
           </div>

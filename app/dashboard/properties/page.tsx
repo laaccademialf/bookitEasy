@@ -7,6 +7,7 @@ import { createProperty, deleteProperty, getHostProperties, updateProperty, type
 import { ensureSecureHostPublicKey, isSecureHostPublicKey, updateUserProfileData } from '../../../lib/auth';
 import { uploadPropertyImages } from '../../../lib/storage';
 import { Edit3, ExternalLink, PlusCircle, Trash2 } from 'lucide-react';
+import { PageBanner } from '../../../components/PageBanner';
 
 export default function PropertiesPage() {
   const { profile, loading } = useContext(AuthContext);

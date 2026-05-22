@@ -1,17 +1,17 @@
 'use client';
 
 import React, { useState } from 'react';
-import AdminSidebar from '../../components/AdminSidebar';
+import HostSidebar from '../../components/HostSidebar';
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const desktopPadding = !isSidebarOpen ? 'lg:pl-0' : isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72';
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <AdminSidebar
+    <div className="min-h-screen">
+      <HostSidebar
         isOpen={isSidebarOpen}
         isCollapsed={isSidebarCollapsed}
         onToggleOpen={() => setIsSidebarOpen((current) => !current)}
