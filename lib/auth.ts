@@ -14,6 +14,8 @@ export interface UserProfile {
   createdAt: any;
 }
 
+const HOST_PUBLIC_KEY_PATTERN = /^h-[a-z0-9]{12}$/;
+
 const USERS_CACHE_TTL_MS = 15000;
 let usersCache: { data: UserProfile[]; expiresAt: number } | null = null;
 
@@ -33,6 +35,37 @@ function getFirebaseClientConfig() {
   };
 }
 
+export function generateHostPublicKey(length = 12) {
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  const chars: string[] = [];
+
+  if (typeof globalThis !== 'undefined' && globalThis.crypto?.getRandomValues) {
+    const random = new Uint8Array(length);
+    globalThis.crypto.getRandomValues(random);
+    for (let i = 0; i < length; i += 1) {
+      chars.push(alphabet[random[i] % alphabet.length]);
+    }
+  } else {
+    for (let i = 0; i < length; i += 1) {
+      chars.push(alphabet[Math.floor(Math.random() * alphabet.length)]);
+    }
+  }
+
+  return `h-${chars.join('')}`;
+}
+
+export function isSecureHostPublicKey(value?: string | null) {
+  return Boolean(value && HOST_PUBLIC_KEY_PATTERN.test(value));
+}
+
+export function ensureSecureHostPublicKey(value?: string | null) {
+  if (isSecureHostPublicKey(value)) {
+    return value as string;
+  }
+
+  return generateHostPublicKey();
+}
+
 export async function registerUser(
   email: string,
   password: string,
@@ -40,16 +73,17 @@ export async function registerUser(
   wantHost: boolean,
   hostUsername: string,
 ) {
-  const credential = await createUserWithEmailAndPassword(auth, email, password);
+  const credential = await createUserWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
   const uid = credential.user.uid;
   const role: UserRole = email === 'andrii.disha@gmail.com' ? 'admin' : wantHost ? 'host' : 'client';
+  const safeHostUsername = wantHost ? ensureSecureHostPublicKey(hostUsername) : '';
 
   const userDoc = {
     uid,
-    email,
+    email: email.trim().toLowerCase(),
     name,
     role,
-    hostUsername: wantHost ? hostUsername : '',
+    hostUsername: safeHostUsername,
     createdAt: serverTimestamp(),
   };
 
@@ -119,7 +153,7 @@ export async function updateUserProfileData(uid: string, payload: UpdateUserProf
     email: payload.email,
     name: payload.name,
     role: payload.role,
-    hostUsername: payload.hostUsername ?? '',
+    hostUsername: payload.role === 'host' ? ensureSecureHostPublicKey(payload.hostUsername) : '',
   });
   resetUsersCache();
 }
@@ -130,7 +164,7 @@ export async function createUserDoc(uid: string, email: string, name: string, ro
     email,
     name,
     role,
-    hostUsername,
+    hostUsername: role === 'host' ? ensureSecureHostPublicKey(hostUsername) : '',
     createdAt: serverTimestamp(),
   };
 
@@ -169,7 +203,7 @@ export async function createUserByAdmin(payload: CreateUserByAdminPayload) {
       email: normalizedEmail,
       name: payload.name,
       role: payload.role,
-      hostUsername: payload.hostUsername ?? '',
+      hostUsername: payload.role === 'host' ? ensureSecureHostPublicKey(payload.hostUsername) : '',
     };
   } finally {
     await signOut(secondaryAuth).catch(() => undefined);

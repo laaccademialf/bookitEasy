@@ -5,12 +5,15 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 import { AuthContext } from '../../providers';
 import {
   createUserByAdmin,
+  ensureSecureHostPublicKey,
   fetchUsers,
+  generateHostPublicKey,
+  isSecureHostPublicKey,
   sendUserPasswordReset,
   type UserProfile,
   updateUserProfileData,
 } from '../../../lib/auth';
-import { KeyRound, Plus, X } from 'lucide-react';
+import { KeyRound, Plus, RefreshCw, X } from 'lucide-react';
 
 const emptyForm = {
   email: '',
@@ -19,25 +22,6 @@ const emptyForm = {
   role: 'client' as UserProfile['role'],
   hostUsername: '',
 };
-
-function generateHostKey(length = 12) {
-  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  const chars = [] as string[];
-
-  if (typeof globalThis !== 'undefined' && globalThis.crypto?.getRandomValues) {
-    const random = new Uint8Array(length);
-    globalThis.crypto.getRandomValues(random);
-    for (let i = 0; i < length; i += 1) {
-      chars.push(alphabet[random[i] % alphabet.length]);
-    }
-  } else {
-    for (let i = 0; i < length; i += 1) {
-      chars.push(alphabet[Math.floor(Math.random() * alphabet.length)]);
-    }
-  }
-
-  return `h-${chars.join('')}`;
-}
 
 export default function AdminAccountsPage() {
   const authContext = useContext(AuthContext as unknown as React.Context<any>);
@@ -58,8 +42,34 @@ export default function AdminAccountsPage() {
     const load = async () => {
       try {
         const data = await fetchUsers();
-        setUsers(data);
+        const normalizedUsers = data.map((user) => {
+          if (user.role !== 'host') return user;
+
+          const safeHostUsername = ensureSecureHostPublicKey(user.hostUsername);
+          return safeHostUsername === user.hostUsername
+            ? user
+            : { ...user, hostUsername: safeHostUsername };
+        });
+
+        setUsers(normalizedUsers);
         setLoadError('');
+
+        const usersToMigrate = normalizedUsers.filter(
+          (user, index) => user.role === 'host' && user.hostUsername !== data[index].hostUsername,
+        );
+
+        if (usersToMigrate.length > 0) {
+          await Promise.allSettled(
+            usersToMigrate.map((user) =>
+              updateUserProfileData(user.uid, {
+                email: user.email,
+                name: user.name,
+                role: user.role,
+                hostUsername: user.hostUsername,
+              }),
+            ),
+          );
+        }
       } catch {
         setUsers([]);
         setLoadError('Немає доступу до списку акаунтів. Перевірте налаштування доступу.');
@@ -101,7 +111,7 @@ export default function AdminAccountsPage() {
 
     try {
       setCreating(true);
-      const hostUsername = form.role === 'host' ? form.hostUsername || generateHostKey() : '';
+      const hostUsername = form.role === 'host' ? ensureSecureHostPublicKey(form.hostUsername) : '';
       const createdUser = await createUserByAdmin({
         email: form.email,
         password: form.password,
@@ -140,7 +150,7 @@ export default function AdminAccountsPage() {
     }
   };
 
-  const handleFieldChange = (uid: string, field: 'name' | 'email' | 'hostUsername', value: string) => {
+  const handleFieldChange = (uid: string, field: 'name' | 'email', value: string) => {
     setUsers((current) =>
       current.map((user) => (user.uid === uid ? { ...user, [field]: value } : user)),
     );
@@ -150,7 +160,7 @@ export default function AdminAccountsPage() {
     setUsers((current) =>
       current.map((user) => {
         if (user.uid !== uid) return user;
-        const fallbackHostUsername = role === 'host' ? user.hostUsername || generateHostKey() : '';
+        const fallbackHostUsername = role === 'host' ? ensureSecureHostPublicKey(user.hostUsername) : '';
         return {
           ...user,
           role,
@@ -160,15 +170,26 @@ export default function AdminAccountsPage() {
     );
   };
 
+  const handleRegenerateHostKey = (uid: string) => {
+    setUsers((current) =>
+      current.map((user) => (user.uid === uid ? { ...user, hostUsername: generateHostPublicKey() } : user)),
+    );
+  };
+
   const handleSaveUser = async (user: UserProfile) => {
+    const safeHostUsername = user.role === 'host' ? ensureSecureHostPublicKey(user.hostUsername) : '';
+
     try {
       setSavingUid(user.uid);
       await updateUserProfileData(user.uid, {
         email: user.email,
         name: user.name,
         role: user.role,
-        hostUsername: user.role === 'host' ? user.hostUsername || generateHostKey() : '',
+        hostUsername: safeHostUsername,
       });
+      setUsers((current) =>
+        current.map((item) => (item.uid === user.uid ? { ...item, hostUsername: safeHostUsername } : item)),
+      );
       setStatus(`Збережено: ${user.email}`);
     } catch (error) {
       console.error(error);
@@ -273,12 +294,18 @@ export default function AdminAccountsPage() {
                         <option value="admin">Адміністратор</option>
                       </select>
                       {user.role === 'host' ? (
-                        <input
-                          value={user.hostUsername || ''}
-                          onChange={(event) => handleFieldChange(user.uid, 'hostUsername', event.target.value)}
-                          placeholder="host username"
-                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-sky-400"
-                        />
+                        <div className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900">
+                          <span className="truncate font-medium">{user.hostUsername || ensureSecureHostPublicKey(user.hostUsername)}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRegenerateHostKey(user.uid)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:bg-slate-100"
+                            aria-label="Згенерувати новий ключ"
+                            title="Згенерувати новий ключ"
+                          >
+                            <RefreshCw className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       ) : (
                         <div className="rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-xs text-slate-500">host username не потрібен</div>
                       )}
@@ -287,7 +314,11 @@ export default function AdminAccountsPage() {
                         <Link
                           href={`/host/${user.hostUsername}`}
                           target="_blank"
-                          className="inline-flex items-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-700 hover:bg-sky-100"
+                          className={`inline-flex items-center rounded-lg border px-3 py-2 text-sm font-medium ${
+                            isSecureHostPublicKey(user.hostUsername)
+                              ? 'border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100'
+                              : 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                          }`}
                         >
                           /host/{user.hostUsername}
                         </Link>
@@ -376,8 +407,7 @@ export default function AdminAccountsPage() {
                   setForm({
                     ...form,
                     role: nextRole,
-                    hostUsername:
-                      nextRole === 'host' ? form.hostUsername || generateHostKey() : '',
+                    hostUsername: nextRole === 'host' ? ensureSecureHostPublicKey(form.hostUsername) : '',
                   });
                 }}
                 className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 outline-none focus:border-sky-400"
@@ -387,12 +417,9 @@ export default function AdminAccountsPage() {
                 <option value="admin">Адміністратор</option>
               </select>
               {form.role === 'host' && (
-                <input
-                  value={form.hostUsername}
-                  onChange={(event) => setForm({ ...form, hostUsername: event.target.value })}
-                  placeholder="h-xxxxxxxxxxxx"
-                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 outline-none focus:border-sky-400"
-                />
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-600">
+                  Безпечне публічне посилання буде згенероване автоматично у форматі `h-xxxxxxxxxxxx`.
+                </div>
               )}
             </div>
 

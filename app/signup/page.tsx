@@ -11,7 +11,6 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [wantHost, setWantHost] = useState(false);
-  const [hostUsername, setHostUsername] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -21,7 +20,7 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      await registerUser(email, password, name, wantHost, hostUsername);
+      await registerUser(email, password, name, wantHost, '');
       router.push('/dashboard');
     } catch (err) {
       setError('Помилка реєстрації. Будь ласка, перевірте введені дані.');
@@ -84,15 +83,8 @@ export default function SignupPage() {
             </div>
 
             {wantHost && (
-              <div>
-                <label className="block text-sm font-medium text-slate-300">Ваш унікальний хост-username</label>
-                <input
-                  type="text"
-                  value={hostUsername}
-                  onChange={(event) => setHostUsername(event.target.value)}
-                  placeholder="ivan-guest"
-                  className="mt-2 w-full rounded-3xl border border-slate-700 bg-slate-900/90 px-4 py-3 text-slate-100 outline-none transition focus:border-sky-400"
-                />
+              <div className="rounded-3xl border border-slate-700 bg-slate-900/90 px-4 py-3 text-sm text-slate-300">
+                Безпечне публічне посилання орендодавця буде згенероване автоматично після створення акаунта.
               </div>
             )}
 
