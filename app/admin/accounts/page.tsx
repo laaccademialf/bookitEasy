@@ -282,7 +282,7 @@ export default function AdminAccountsPage() {
         }
       />
 
-      <div className="mx-auto max-w-7xl px-6 py-8 lg:px-10">
+      <div className="w-full px-4 py-8 sm:px-6 lg:px-6">
         {loadError && <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">{loadError}</p>}
         {status && <p className="mb-4 rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-700">{status}</p>}
 
@@ -303,8 +303,8 @@ export default function AdminAccountsPage() {
                 <p className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">Користувачів не знайдено</p>
               ) : (
                 <>
-                  <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 md:block">
-                    <table className="min-w-full text-sm">
+                  <div className="hidden rounded-2xl border border-slate-200 md:block">
+                    <table className="w-full table-fixed text-sm">
                       <thead className="bg-slate-100 text-xs uppercase tracking-wider text-slate-500">
                         <tr>
                           <th className="px-3 py-2 text-left">Ім'я</th>
@@ -324,14 +324,14 @@ export default function AdminAccountsPage() {
                               <input
                                 value={user.name}
                                 onChange={(event) => handleFieldChange(user.uid, 'name', event.target.value)}
-                                className="w-36 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm outline-none focus:border-sky-400"
+                                className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm outline-none focus:border-sky-400"
                               />
                             </td>
                             <td className="px-3 py-2">
                               <input
                                 value={user.email}
                                 onChange={(event) => handleFieldChange(user.uid, 'email', event.target.value)}
-                                className="w-52 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm outline-none focus:border-sky-400"
+                                className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm outline-none focus:border-sky-400"
                               />
                               <p className="mt-1 text-[11px] text-slate-400">UID: {user.uid.slice(0, 14)}...</p>
                             </td>
@@ -339,7 +339,7 @@ export default function AdminAccountsPage() {
                               <select
                                 value={user.role}
                                 onChange={(event) => handleRoleChange(user.uid, event.target.value as UserProfile['role'])}
-                                className="w-40 rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm outline-none focus:border-sky-400"
+                                className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm outline-none focus:border-sky-400"
                               >
                                 <option value="client">Клієнт</option>
                                 <option value="host">Орендодавець</option>
@@ -348,11 +348,11 @@ export default function AdminAccountsPage() {
                             </td>
                             <td className="px-3 py-2">
                               {user.role === 'host' && user.hostUsername ? (
-                                <div className="flex items-center gap-2">
+                                <div className="flex min-w-0 items-center gap-2">
                                   <Link
                                     href={`/host/${user.hostUsername}`}
                                     target="_blank"
-                                    className={`inline-flex items-center rounded-lg border px-2.5 py-2 text-xs font-medium ${
+                                    className={`inline-flex max-w-[9.5rem] items-center truncate rounded-lg border px-2.5 py-2 text-xs font-medium ${
                                       isSecureHostPublicKey(user.hostUsername)
                                         ? 'border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100'
                                         : 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
@@ -380,7 +380,7 @@ export default function AdminAccountsPage() {
                                   onChange={(event) =>
                                     handleSubscriptionChange(user.uid, 'subscriptionPlan', event.target.value)
                                   }
-                                  className="w-28 rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs outline-none focus:border-sky-400"
+                                  className="w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs outline-none focus:border-sky-400"
                                 >
                                   <option value="starter">Starter</option>
                                   <option value="pro">Pro</option>
@@ -397,7 +397,7 @@ export default function AdminAccountsPage() {
                                   onChange={(event) =>
                                     handleSubscriptionChange(user.uid, 'subscriptionStatus', event.target.value)
                                   }
-                                  className="w-28 rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs outline-none focus:border-sky-400"
+                                  className="w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs outline-none focus:border-sky-400"
                                 >
                                   <option value="active">Активна</option>
                                   <option value="paused">Пауза</option>
@@ -415,7 +415,7 @@ export default function AdminAccountsPage() {
                                   onChange={(event) =>
                                     handleSubscriptionChange(user.uid, 'subscriptionRenewAt', event.target.value)
                                   }
-                                  className="w-36 rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs outline-none focus:border-sky-400"
+                                  className="w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs outline-none focus:border-sky-400"
                                 />
                               ) : (
                                 <span className="text-xs text-slate-400">-</span>

@@ -16,12 +16,22 @@ type PropertyStat = {
   bookingsCount: number;
 };
 
+type PeriodFilter = '30d' | '90d' | 'year' | 'all';
+
+type MonthStat = {
+  monthKey: string;
+  revenue: number;
+  expenses: number;
+  profit: number;
+};
+
 export default function FinancesPage() {
   const { profile, loading } = useContext(AuthContext);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [selectedProperty, setSelectedProperty] = useState<string>('all');
+  const [period, setPeriod] = useState<PeriodFilter>('90d');
   const [expenseForm, setExpenseForm] = useState({
     category: 'utility',
     amount: 0,
@@ -46,16 +56,38 @@ export default function FinancesPage() {
     load();
   }, [profile]);
 
+  const periodStart = useMemo(() => {
+    if (period === 'all') return null;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const start = new Date(today);
+    if (period === '30d') start.setDate(today.getDate() - 29);
+    if (period === '90d') start.setDate(today.getDate() - 89);
+    if (period === 'year') start.setMonth(today.getMonth() - 11);
+    return start;
+  }, [period]);
+
+  const inPeriod = (dateValue: string) => {
+    if (!periodStart) return true;
+    const date = new Date(dateValue);
+    return !Number.isNaN(date.getTime()) && date >= periodStart;
+  };
+
   const filteredBookings = useMemo(
-    () => (selectedProperty === 'all' ? bookings : bookings.filter((b) => b.propertyId === selectedProperty)),
-    [bookings, selectedProperty],
+    () =>
+      (selectedProperty === 'all' ? bookings : bookings.filter((b) => b.propertyId === selectedProperty)).filter((b) =>
+        inPeriod(b.endDate),
+      ),
+    [bookings, selectedProperty, periodStart],
   );
   const filteredExpenses = useMemo(
     () =>
       selectedProperty === 'all'
-        ? expenses
-        : expenses.filter((e) => (e as any).propertyId === selectedProperty),
-    [expenses, selectedProperty],
+        ? expenses.filter((e) => inPeriod(e.date))
+        : expenses.filter((e) => (e as any).propertyId === selectedProperty && inPeriod(e.date)),
+    [expenses, selectedProperty, periodStart],
   );
 
   const totalRevenue = useMemo(
@@ -67,6 +99,38 @@ export default function FinancesPage() {
     [filteredExpenses],
   );
   const profit = totalRevenue - totalExpenses;
+  const margin = totalRevenue > 0 ? Math.round((profit / totalRevenue) * 100) : 0;
+
+  const monthlyTrend: MonthStat[] = useMemo(() => {
+    const map = new Map<string, MonthStat>();
+
+    filteredBookings.forEach((booking: any) => {
+      const date = new Date(booking.endDate || booking.startDate);
+      if (Number.isNaN(date.getTime())) return;
+      const monthKey = `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, '0')}`;
+      const current = map.get(monthKey) || { monthKey, revenue: 0, expenses: 0, profit: 0 };
+      current.revenue += Number(booking.totalPrice || 0);
+      map.set(monthKey, current);
+    });
+
+    filteredExpenses.forEach((expense) => {
+      const date = new Date(expense.date);
+      if (Number.isNaN(date.getTime())) return;
+      const monthKey = `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, '0')}`;
+      const current = map.get(monthKey) || { monthKey, revenue: 0, expenses: 0, profit: 0 };
+      current.expenses += Number(expense.amount || 0);
+      map.set(monthKey, current);
+    });
+
+    return Array.from(map.values())
+      .sort((a, b) => a.monthKey.localeCompare(b.monthKey))
+      .map((item) => ({ ...item, profit: item.revenue - item.expenses }));
+  }, [filteredBookings, filteredExpenses]);
+
+  const trendMaxValue = useMemo(
+    () => Math.max(1, ...monthlyTrend.flatMap((item) => [item.revenue, item.expenses])),
+    [monthlyTrend],
+  );
 
   const perProperty: PropertyStat[] = useMemo(() => {
     const map = new Map<string, PropertyStat>();
@@ -131,39 +195,101 @@ export default function FinancesPage() {
         title="Фінансові звіти"
         variant="dark"
         actions={
-          <select
-            value={selectedProperty}
-            onChange={(event) => setSelectedProperty(event.target.value)}
-            className="w-full rounded-full border border-white/15 bg-slate-900/80 px-4 py-2 text-sm text-slate-100 outline-none focus:border-sky-400 sm:w-auto"
-          >
-            <option value="all">Усі обʼєкти</option>
-            {properties.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.title}
-              </option>
-            ))}
-          </select>
+          <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+            <select
+              value={period}
+              onChange={(event) => setPeriod(event.target.value as PeriodFilter)}
+              className="w-full rounded-full border border-white/15 bg-slate-900/80 px-4 py-2 text-sm text-slate-100 outline-none focus:border-sky-400 sm:w-auto"
+            >
+              <option value="30d">Останні 30 днів</option>
+              <option value="90d">Останні 90 днів</option>
+              <option value="year">Останній рік</option>
+              <option value="all">За весь час</option>
+            </select>
+            <select
+              value={selectedProperty}
+              onChange={(event) => setSelectedProperty(event.target.value)}
+              className="w-full rounded-full border border-white/15 bg-slate-900/80 px-4 py-2 text-sm text-slate-100 outline-none focus:border-sky-400 sm:w-auto"
+            >
+              <option value="all">Усі обʼєкти</option>
+              {properties.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.title}
+                </option>
+              ))}
+            </select>
+          </div>
         }
       />
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
-        <div className="grid gap-4 sm:gap-6 md:grid-cols-3">
-          <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-5 shadow-xl sm:rounded-[2rem] sm:p-6">
+      <div className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-6">
+        <div className="grid grid-cols-2 gap-4 sm:gap-6 xl:grid-cols-4">
+          <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 shadow-xl sm:rounded-[2rem] sm:p-6">
             <p className="text-xs uppercase tracking-[0.24em] text-slate-400 sm:text-sm">Доходи</p>
-            <p className="mt-3 text-2xl font-semibold text-white sm:mt-4 sm:text-4xl">{totalRevenue.toLocaleString('uk-UA')} грн</p>
+            <p className="mt-2 text-xl font-semibold text-white sm:mt-4 sm:text-4xl">{totalRevenue.toLocaleString('uk-UA')} грн</p>
             <p className="mt-1 text-xs text-slate-500">{filteredBookings.length} бронювань</p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-5 shadow-xl sm:rounded-[2rem] sm:p-6">
+          <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 shadow-xl sm:rounded-[2rem] sm:p-6">
             <p className="text-xs uppercase tracking-[0.24em] text-slate-400 sm:text-sm">Витрати</p>
-            <p className="mt-3 text-2xl font-semibold text-white sm:mt-4 sm:text-4xl">{totalExpenses.toLocaleString('uk-UA')} грн</p>
+            <p className="mt-2 text-xl font-semibold text-white sm:mt-4 sm:text-4xl">{totalExpenses.toLocaleString('uk-UA')} грн</p>
             <p className="mt-1 text-xs text-slate-500">{filteredExpenses.length} записів</p>
           </div>
-          <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-5 shadow-xl sm:rounded-[2rem] sm:p-6">
+          <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 shadow-xl sm:rounded-[2rem] sm:p-6">
             <p className="text-xs uppercase tracking-[0.24em] text-slate-400 sm:text-sm">Чистий прибуток</p>
-            <p className={`mt-3 text-2xl font-semibold sm:mt-4 sm:text-4xl ${profit >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+            <p className={`mt-2 text-xl font-semibold sm:mt-4 sm:text-4xl ${profit >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
               {profit.toLocaleString('uk-UA')} грн
             </p>
           </div>
+          <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 shadow-xl sm:rounded-[2rem] sm:p-6">
+            <p className="text-xs uppercase tracking-[0.24em] text-slate-400 sm:text-sm">Маржа</p>
+            <p className={`mt-2 text-xl font-semibold sm:mt-4 sm:text-4xl ${margin >= 0 ? 'text-sky-300' : 'text-rose-300'}`}>
+              {margin}%
+            </p>
+            <p className="mt-1 text-xs text-slate-500">Прибуток / дохід</p>
+          </div>
         </div>
+
+        <section className="mt-6 rounded-2xl border border-white/10 bg-slate-900/80 p-5 shadow-xl sm:mt-8 sm:rounded-[2rem] sm:p-6">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-white sm:text-2xl">Динаміка по місяцях</h2>
+            <span className="text-xs text-slate-500">{monthlyTrend.length} міс.</span>
+          </div>
+          {monthlyTrend.length === 0 ? (
+            <p className="mt-4 text-sm text-slate-400">Недостатньо даних за обраний період.</p>
+          ) : (
+            <div className="mt-5 space-y-3">
+              {monthlyTrend.map((item) => (
+                <div key={item.monthKey} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3 sm:p-4">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <p className="font-medium text-slate-200">{item.monthKey}</p>
+                    <p className={`font-semibold ${item.profit >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                      {item.profit.toLocaleString('uk-UA')} грн
+                    </p>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    <div>
+                      <div className="mb-1 flex items-center justify-between text-xs text-slate-400">
+                        <span>Дохід</span>
+                        <span>{item.revenue.toLocaleString('uk-UA')} грн</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-slate-800">
+                        <div className="h-2 rounded-full bg-emerald-400" style={{ width: `${(item.revenue / trendMaxValue) * 100}%` }} />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="mb-1 flex items-center justify-between text-xs text-slate-400">
+                        <span>Витрати</span>
+                        <span>{item.expenses.toLocaleString('uk-UA')} грн</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-slate-800">
+                        <div className="h-2 rounded-full bg-rose-400" style={{ width: `${(item.expenses / trendMaxValue) * 100}%` }} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
 
         <section className="mt-6 rounded-2xl border border-white/10 bg-slate-900/80 p-5 shadow-xl sm:mt-8 sm:rounded-[2rem] sm:p-6">
           <div className="flex items-center justify-between gap-3">

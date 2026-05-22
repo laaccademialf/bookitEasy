@@ -16,7 +16,7 @@ export function PageBanner({ title, actions, variant = 'light' }: PageBannerProp
           : 'w-full border-b border-slate-200 bg-white/95 backdrop-blur-sm'
       }
     >
-      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-6 sm:flex-row sm:items-center sm:justify-between lg:px-10">
+      <div className="flex w-full flex-col gap-3 px-4 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-6">
         <h1
           className={`text-2xl font-semibold tracking-tight sm:text-3xl ${
             isDark ? 'text-white' : 'text-slate-900'

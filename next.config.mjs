@@ -1,5 +1,21 @@
 const nextConfig = {
   reactStrictMode: true,
+  onDemandEntries: {
+    // Keep compiled dev pages much longer to reduce chunk 404 during navigation.
+    maxInactiveAge: 1000 * 60 * 60,
+    pagesBufferLength: 100,
+  },
+  webpack: (config, { dev }) => {
+    if (dev) {
+      config.watchOptions = {
+        poll: 1000,
+        aggregateTimeout: 300,
+        ignored: ['**/.git/**', '**/node_modules/**'],
+      };
+    }
+
+    return config;
+  },
   images: {
     remotePatterns: [
       {
@@ -28,6 +44,10 @@ const nextConfig = {
           {
             key: 'Expires',
             value: '0',
+          },
+          {
+            key: 'Surrogate-Control',
+            value: 'no-store',
           },
         ],
       },

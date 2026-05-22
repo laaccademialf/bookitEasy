@@ -76,7 +76,7 @@ export default function AdminPropertiesPage() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <PageBanner title="Обʼєкти" />
-      <div className="mx-auto max-w-7xl px-6 py-8 lg:px-10">
+      <div className="w-full px-4 py-8 sm:px-6 lg:px-6">
         {loadError && <p className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">{loadError}</p>}
 
         <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-md">

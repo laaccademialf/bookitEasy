@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useContext, useEffect } from 'react';
+import { Building2, CalendarDays, Wallet } from 'lucide-react';
 import { AuthContext } from '../providers';
 import { PageBanner } from '../../components/PageBanner';
 
@@ -44,16 +45,40 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <PageBanner title="Кабінет орендодавця" />
-      <div className="mx-auto max-w-7xl px-6 py-8 lg:px-10">
-        <div className="grid gap-6 md:grid-cols-3">
+      <div className="w-full px-4 py-8 sm:px-6 lg:px-6">
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
           {[
-            { title: 'Властивості', description: 'CRUD об’єктів, фото, опис та доступність.', href: '/dashboard/properties' },
-            { title: 'Календар', description: 'Перегляд бронювань і блокування дат.', href: '/dashboard/calendar' },
-            { title: 'Фінанси', description: 'Доходи, витрати та аналітика.', href: '/dashboard/finances' },
+            {
+              title: 'Мої обʼєкти',
+              description: 'Керування обʼєктами і доступністю',
+              href: '/dashboard/properties',
+              icon: Building2,
+            },
+            {
+              title: 'Календар',
+              description: 'Бронювання у форматі таймлайну',
+              href: '/dashboard/calendar',
+              icon: CalendarDays,
+            },
+            {
+              title: 'Фінанси',
+              description: 'Доходи, витрати, прибуток',
+              href: '/dashboard/finances',
+              icon: Wallet,
+            },
           ].map((card) => (
-            <Link key={card.title} href={card.href} className="rounded-[2rem] border border-slate-200 bg-white p-6 transition hover:border-sky-400 hover:shadow-lg">
-              <h2 className="text-2xl font-semibold text-slate-900">{card.title}</h2>
-              <p className="mt-3 text-slate-600">{card.description}</p>
+            <Link
+              key={card.title}
+              href={card.href}
+              className="group flex aspect-square flex-col justify-between rounded-[1.5rem] border border-slate-200 bg-white p-4 transition hover:-translate-y-0.5 hover:border-sky-400 hover:shadow-lg sm:rounded-[2rem] sm:p-5"
+            >
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-100 text-sky-700 transition group-hover:bg-sky-500 group-hover:text-white">
+                <card.icon className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">{card.title}</h2>
+                <p className="mt-2 text-sm text-slate-600">{card.description}</p>
+              </div>
             </Link>
           ))}
         </div>

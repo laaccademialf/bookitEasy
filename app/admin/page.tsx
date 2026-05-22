@@ -66,7 +66,7 @@ export default function AdminPage() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <PageBanner title="Кабінет адміністратора" />
-      <div className="mx-auto max-w-7xl px-6 py-8 lg:px-10">
+      <div className="w-full px-4 py-8 sm:px-6 lg:px-6">
         {loadError && <p className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">{loadError}</p>}
 
         <div className="grid gap-5 md:grid-cols-4">

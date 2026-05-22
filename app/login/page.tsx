@@ -49,9 +49,9 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="mx-auto flex min-h-screen max-w-5xl items-center justify-center px-4 py-8 sm:px-6 sm:py-12 lg:px-10">
-        <div className="w-full rounded-3xl border border-slate-200 bg-white/95 p-5 shadow-[0_40px_120px_rgba(15,23,42,0.08)] sm:rounded-[2.5rem] sm:p-6 md:p-10">
+    <main className="min-h-[100svh] bg-slate-50 text-slate-900">
+      <div className="mx-auto flex min-h-[100svh] max-w-5xl items-start justify-center px-4 py-4 sm:px-6 sm:py-8 md:items-center md:py-10 lg:px-10">
+        <div className="w-full rounded-3xl border border-slate-200 bg-white/95 p-4 shadow-[0_40px_120px_rgba(15,23,42,0.08)] sm:rounded-[2.5rem] sm:p-6 md:p-10">
           <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr] lg:gap-10">
             <div className="hidden rounded-[2rem] bg-slate-50 p-8 lg:block">
               <span className="inline-flex rounded-full bg-sky-100 px-4 py-2 text-sm font-semibold text-sky-700">
@@ -69,7 +69,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="rounded-[2rem] bg-slate-950/95 p-6 text-slate-100 shadow-xl sm:p-8">
+            <div className="rounded-[2rem] bg-slate-950/95 p-5 text-slate-100 shadow-xl sm:p-8">
               <h2 className="text-2xl font-semibold sm:text-3xl">Увійти</h2>
               <p className="mt-3 text-sm text-slate-400">Введіть email і пароль для доступу до вашого кабінету.</p>
 

@@ -19,11 +19,11 @@ export function TopNav() {
   const hasProfile = Boolean(user && profile);
   const sidebarOffsetClass = isSectionPage
     ? sidebarOffset >= 280
-      ? 'lg:ml-72'
+      ? 'lg:pl-[19.5rem]'
       : sidebarOffset >= 70
-      ? 'lg:ml-20'
-      : 'lg:ml-0'
-    : 'lg:ml-0';
+      ? 'lg:pl-[6.5rem]'
+      : 'lg:pl-6'
+    : 'lg:pl-6';
 
   const showSubscription = useMemo(() => {
     if (!profile) return false;
@@ -94,7 +94,7 @@ export function TopNav() {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/50 bg-white/85 backdrop-blur-xl">
       <div
-        className={`flex w-full items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4 lg:pr-10 lg:pl-6 lg:transition-[margin] lg:duration-300 ${sidebarOffsetClass}`}
+        className={`flex w-full items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4 lg:pr-4 lg:transition-[padding] lg:duration-300 ${sidebarOffsetClass}`}
       >
         <div className="flex items-center gap-2">
           {isSectionPage && (

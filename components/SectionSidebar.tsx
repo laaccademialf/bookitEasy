@@ -75,7 +75,7 @@ export default function SectionSidebar({
 
       <aside
         aria-label={ariaLabel}
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-200 bg-white pt-20 shadow-xl transition-all duration-300 ${desktopSidebarClass} ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-200 bg-white pt-4 shadow-xl transition-all duration-300 ${desktopSidebarClass} ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         } lg:translate-x-0`}
       >
@@ -110,7 +110,7 @@ export default function SectionSidebar({
           )}
         </div>
 
-        <nav className={`mt-6 flex flex-col gap-1.5 px-3 ${!isOpen ? 'lg:hidden' : ''}`}>
+        <nav className={`mt-2 flex flex-col gap-1.5 px-3 ${!isOpen ? 'lg:hidden' : ''}`}>
           {navItems.map((item) => {
             const isActive = item.exact
               ? pathname === item.href

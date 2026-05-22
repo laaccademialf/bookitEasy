@@ -188,19 +188,19 @@ export default function PropertiesPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
+    <main className="min-h-screen overflow-x-clip bg-slate-50 text-slate-900">
       <PageBanner title="Обʼєкти" />
-      <div className="mx-auto max-w-7xl px-6 py-8 lg:px-10">
-        <div className="mb-8 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-md">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="w-full px-3 py-5 sm:px-6 sm:py-8 lg:px-6">
+        <div className="mb-6 rounded-3xl border border-slate-200 bg-white p-4 shadow-md sm:mb-8 sm:rounded-[2rem] sm:p-6">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
             <p className="text-sm text-slate-600">Публічна сторінка орендодавця (для клієнтів):</p>
             {publicHostUsername ? (
-              <div className="mt-2 flex flex-wrap items-center gap-3">
-                <code className="rounded-lg bg-white px-3 py-2 text-sm text-slate-800">/host/{publicHostUsername}</code>
+              <div className="mt-2 flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+                <code className="max-w-full break-all rounded-lg bg-white px-3 py-2 text-xs text-slate-800 sm:text-sm">/host/{publicHostUsername}</code>
                 <Link
                   href={`/host/${publicHostUsername}`}
                   target="_blank"
-                  className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700 sm:w-auto"
                 >
                   Відкрити як клієнт <ExternalLink className="h-3.5 w-3.5" />
                 </Link>
@@ -211,33 +211,33 @@ export default function PropertiesPage() {
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1.4fr_0.9fr]">
-          <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-lg">
-            <h2 className="text-2xl font-semibold text-slate-900">Список об’єктів</h2>
-            <div className="mt-6 space-y-4">
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-[1.4fr_0.9fr]">
+          <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-lg sm:rounded-[2rem] sm:p-6">
+            <h2 className="text-xl font-semibold text-slate-900 sm:text-2xl">Список об’єктів</h2>
+            <div className="mt-4 space-y-3 sm:mt-6 sm:space-y-4">
               {properties.length === 0 ? (
                 <p className="text-slate-400">У вас ще немає об’єктів. Додайте перший.</p>
               ) : (
                 properties.map((property) => (
-                  <div key={property.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
+                  <div key={property.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm sm:rounded-3xl sm:p-5">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <h3 className="text-xl font-semibold text-slate-900">{property.title}</h3>
+                      <div className="min-w-0">
+                        <h3 className="truncate text-lg font-semibold text-slate-900 sm:text-xl">{property.title}</h3>
                         <p className="mt-2 text-sm text-slate-600">{property.address}</p>
                         <p className="mt-1 text-sm text-slate-600">{property.rooms} кімнати · {property.guests} гостей</p>
                       </div>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
                         <button
                           type="button"
                           onClick={() => handleEdit(property)}
-                          className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-slate-100 px-4 py-2 text-sm text-slate-900 transition hover:border-sky-400"
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-slate-300 bg-slate-100 px-4 py-2 text-sm text-slate-900 transition hover:border-sky-400 sm:w-auto"
                         >
                           <Edit3 className="h-4 w-4" /> Редагувати
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDelete(property.id)}
-                          className="inline-flex items-center gap-2 rounded-full border border-rose-500 bg-rose-100 px-4 py-2 text-sm text-rose-700 transition hover:bg-rose-200"
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-rose-500 bg-rose-100 px-4 py-2 text-sm text-rose-700 transition hover:bg-rose-200 sm:w-auto"
                         >
                           <Trash2 className="h-4 w-4" /> Видалити
                         </button>
@@ -249,17 +249,17 @@ export default function PropertiesPage() {
             </div>
           </section>
 
-          <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-lg">
-            <h2 className="text-2xl font-semibold text-slate-900">Форма об’єкта</h2>
+          <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-lg sm:rounded-[2rem] sm:p-6">
+            <h2 className="text-xl font-semibold text-slate-900 sm:text-2xl">Форма об’єкта</h2>
             <p className="mt-2 text-sm text-slate-600">Додайте або відредагуйте об’єкт, щоб він з’явився в кабінеті та на персональній сторінці.</p>
-            <form onSubmit={handleSubmit} className="mt-6 space-y-5">
+            <form onSubmit={handleSubmit} className="mt-5 space-y-4 sm:mt-6 sm:space-y-5">
               <div>
                 <label className="block text-sm font-medium text-slate-700">Назва об’єкта</label>
                 <input
                   value={form.title}
                   onChange={(event) => setForm({ ...form, title: event.target.value })}
                   required
-                  className="mt-2 w-full rounded-3xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400"
+                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400 sm:rounded-3xl"
                 />
               </div>
               <div>
@@ -268,7 +268,7 @@ export default function PropertiesPage() {
                   value={form.address}
                   onChange={(event) => setForm({ ...form, address: event.target.value })}
                   required
-                  className="mt-2 w-full rounded-3xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400"
+                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400 sm:rounded-3xl"
                 />
               </div>
               <div>
@@ -277,7 +277,7 @@ export default function PropertiesPage() {
                   value={form.description}
                   onChange={(event) => setForm({ ...form, description: event.target.value })}
                   rows={4}
-                  className="mt-2 w-full rounded-3xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400"
+                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400 sm:rounded-3xl"
                 />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -288,7 +288,7 @@ export default function PropertiesPage() {
                     value={form.pricePerNight}
                     onChange={(event) => setForm({ ...form, pricePerNight: Number(event.target.value) })}
                     required
-                    className="mt-2 w-full rounded-3xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400"
+                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400 sm:rounded-3xl"
                   />
                 </div>
                 <div>
@@ -298,7 +298,7 @@ export default function PropertiesPage() {
                     value={form.rooms}
                     onChange={(event) => setForm({ ...form, rooms: Number(event.target.value) })}
                     required
-                    className="mt-2 w-full rounded-3xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400"
+                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400 sm:rounded-3xl"
                   />
                 </div>
                 <div>
@@ -308,7 +308,7 @@ export default function PropertiesPage() {
                     value={form.guests}
                     onChange={(event) => setForm({ ...form, guests: Number(event.target.value) })}
                     required
-                    className="mt-2 w-full rounded-3xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400"
+                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400 sm:rounded-3xl"
                   />
                 </div>
               </div>
@@ -317,7 +317,7 @@ export default function PropertiesPage() {
                 <input
                   value={form.amenities}
                   onChange={(event) => setForm({ ...form, amenities: event.target.value })}
-                  className="mt-2 w-full rounded-3xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400"
+                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400 sm:rounded-3xl"
                 />
               </div>
               <div>
@@ -327,7 +327,7 @@ export default function PropertiesPage() {
                   accept="image/*"
                   multiple
                   onChange={(event) => setImageFiles(event.target.files)}
-                  className="mt-2 w-full rounded-3xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none file:mr-4 file:rounded-full file:border-0 file:bg-slate-200 file:px-4 file:py-2 file:text-sm file:text-slate-900 focus:border-sky-400"
+                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none file:mr-4 file:rounded-full file:border-0 file:bg-slate-200 file:px-4 file:py-2 file:text-sm file:text-slate-900 focus:border-sky-400 sm:rounded-3xl"
                 />
                 {existingImages.length > 0 && (
                   <p className="mt-2 text-sm text-slate-400">Завантажено {existingImages.length} фото</p>
