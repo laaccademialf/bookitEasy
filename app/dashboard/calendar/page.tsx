@@ -52,13 +52,8 @@ export default function CalendarPage() {
 
   return (
     <main className="min-h-screen bg-[#070c18] text-slate-100">
-      <div className="mx-auto max-w-6xl px-6 py-12 lg:px-10">
-        <div className="mb-8 rounded-[2rem] border border-white/10 bg-slate-950/80 p-8 shadow-glow backdrop-blur-xl">
-          <p className="text-sm uppercase tracking-[0.3em] text-sky-300">Календар зайнятості</p>
-          <h1 className="mt-4 text-4xl font-semibold text-white">Заброньовані дати та ручне блокування</h1>
-          <p className="mt-3 text-slate-400">Переглядайте активні бронювання, відстежуйте доступність і закривайте дати вручну.</p>
-        </div>
-
+      <PageBanner title="Календар" variant="dark" />
+      <div className="mx-auto max-w-7xl px-6 py-8 lg:px-10">
         <div className="grid gap-6 lg:grid-cols-[1.35fr_0.65fr]">
           <section className="rounded-[2rem] border border-white/10 bg-slate-900/80 p-6 shadow-xl">
             <h2 className="text-2xl font-semibold text-white">Графік бронювань</h2>

@@ -18,9 +18,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         onToggleCollapsed={() => setIsSidebarCollapsed((current) => !current)}
       />
       <div className={`transition-all duration-300 ${desktopPadding}`}>
-        <div className="mx-auto max-w-7xl px-6 py-12 lg:px-10">
-          <main>{children}</main>
-        </div>
+        <main>{children}</main>
       </div>
     </div>
   );

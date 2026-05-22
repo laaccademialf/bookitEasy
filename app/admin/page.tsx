@@ -6,6 +6,7 @@ import { AuthContext } from '../providers';
 import { fetchUsers, type UserProfile } from '../../lib/auth';
 import { getPublicProperties } from '../../lib/properties';
 import { Building2, Users } from 'lucide-react';
+import { PageBanner } from '../../components/PageBanner';
 
 export default function AdminPage() {
   const authContext = useContext(AuthContext as unknown as React.Context<any>);
@@ -64,15 +65,9 @@ export default function AdminPage() {
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="mx-auto max-w-6xl px-6 py-12 lg:px-10">
-        <div className="mb-8 rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl">
-          <p className="text-sm uppercase tracking-[0.3em] text-sky-500">Кабінет адміністратора</p>
-          <h1 className="mt-4 text-4xl font-semibold text-slate-900">Керуйте акаунтами і бізнес-обʼєктами</h1>
-          <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600">
-            Створюйте та редагуйте акаунти, призначайте ролі орендодавців і контролюйте каталог обʼєктів, які додають хости.
-          </p>
-          {loadError && <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">{loadError}</p>}
-        </div>
+      <PageBanner title="Кабінет адміністратора" />
+      <div className="mx-auto max-w-7xl px-6 py-8 lg:px-10">
+        {loadError && <p className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">{loadError}</p>}
 
         <div className="grid gap-5 md:grid-cols-4">
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">

@@ -14,6 +14,7 @@ import {
   updateUserProfileData,
 } from '../../../lib/auth';
 import { KeyRound, Plus, RefreshCw, X } from 'lucide-react';
+import { PageBanner } from '../../../components/PageBanner';
 
 const emptyForm = {
   email: '',
@@ -233,28 +234,23 @@ export default function AdminAccountsPage() {
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
-      <section className="w-full border-y border-slate-200 bg-white/90 px-6 py-7 lg:px-10">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="text-sm uppercase tracking-[0.25em] text-sky-500">Управління акаунтами</p>
-            <h1 className="mt-2 text-4xl font-semibold text-slate-900">Створення, редагування і ролі</h1>
-            <p className="mt-3 max-w-3xl text-slate-600">
-              Видавайте роль орендодавця, надсилайте запит на зміну пароля та відкривайте швидке посилання на обʼєкти хоста.
-            </p>
-          </div>
+      <PageBanner
+        title="Акаунти"
+        actions={
           <button
             type="button"
             onClick={() => setCreateModalOpen(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-500"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-sky-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-500"
           >
             <Plus className="h-4 w-4" /> Створити акаунт
           </button>
-        </div>
-        {loadError && <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">{loadError}</p>}
-        {status && <p className="mt-4 rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-700">{status}</p>}
-      </section>
+        }
+      />
 
       <div className="mx-auto max-w-7xl px-6 py-8 lg:px-10">
+        {loadError && <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">{loadError}</p>}
+        {status && <p className="mb-4 rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-700">{status}</p>}
+
         <div className="grid gap-6">
           <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-md">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">

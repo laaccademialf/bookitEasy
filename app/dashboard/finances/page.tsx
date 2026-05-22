@@ -72,13 +72,8 @@ export default function FinancesPage() {
 
   return (
     <main className="min-h-screen bg-[#070c18] text-slate-100">
-      <div className="mx-auto max-w-6xl px-6 py-12 lg:px-10">
-        <div className="mb-8 rounded-[2rem] border border-white/10 bg-slate-950/80 p-8 shadow-glow backdrop-blur-xl">
-          <p className="text-sm uppercase tracking-[0.3em] text-sky-300">Фінансова аналітика</p>
-          <h1 className="mt-4 text-4xl font-semibold text-white">Доходи, витрати та чистий прибуток</h1>
-          <p className="mt-3 text-slate-400">Аналізуйте прибуток за рахунок бронювань і контролюйте витрати бізнесу.</p>
-        </div>
-
+      <PageBanner title="Фінанси" variant="dark" />
+      <div className="mx-auto max-w-7xl px-6 py-8 lg:px-10">
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="rounded-[2rem] border border-white/10 bg-slate-900/80 p-6 shadow-xl">
             <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Доходи</p>

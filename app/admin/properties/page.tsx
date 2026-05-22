@@ -5,6 +5,7 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 import { AuthContext } from '../../providers';
 import { fetchUsers, type UserProfile } from '../../../lib/auth';
 import { getPublicProperties, type Property } from '../../../lib/properties';
+import { PageBanner } from '../../../components/PageBanner';
 
 export default function AdminPropertiesPage() {
   const authContext = useContext(AuthContext as unknown as React.Context<any>);
@@ -74,17 +75,11 @@ export default function AdminPropertiesPage() {
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="mx-auto max-w-7xl px-6 py-12 lg:px-10">
-        <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl">
-          <p className="text-sm uppercase tracking-[0.25em] text-emerald-600">Управління обʼєктами</p>
-          <h1 className="mt-3 text-4xl font-semibold text-slate-900">Каталог обʼєктів орендодавців</h1>
-          <p className="mt-3 max-w-3xl text-slate-600">
-            Переглядайте всі обʼєкти в системі і швидко переходьте до модулю акаунтів, щоб призначити роль орендодавця потрібному користувачу.
-          </p>
-          {loadError && <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">{loadError}</p>}
-        </div>
+      <PageBanner title="Обʼєкти" />
+      <div className="mx-auto max-w-7xl px-6 py-8 lg:px-10">
+        {loadError && <p className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">{loadError}</p>}
 
-        <section className="mt-6 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-md">
+        <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-md">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <p className="text-sm text-slate-600">Всього обʼєктів: {properties.length}</p>
             <input

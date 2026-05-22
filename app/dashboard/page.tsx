@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useContext, useEffect } from 'react';
 import { AuthContext } from '../providers';
+import { PageBanner } from '../../components/PageBanner';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -42,15 +43,8 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="mx-auto max-w-6xl px-6 py-12 lg:px-10">
-        <div className="mb-8 rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl">
-          <p className="text-sm uppercase tracking-[0.3em] text-sky-500">Кабінет орендодавця</p>
-          <h1 className="mt-4 text-4xl font-semibold text-slate-900">Зведена панель управління для хоста</h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
-            Тут власник керує об’єктами, бронюваннями, календарем та фінансами. Це базовий старт для майбутнього Premium B2B-проєкту.
-          </p>
-        </div>
-
+      <PageBanner title="Кабінет орендодавця" />
+      <div className="mx-auto max-w-7xl px-6 py-8 lg:px-10">
         <div className="grid gap-6 md:grid-cols-3">
           {[
             { title: 'Властивості', description: 'CRUD об’єктів, фото, опис та доступність.', href: '/dashboard/properties' },
