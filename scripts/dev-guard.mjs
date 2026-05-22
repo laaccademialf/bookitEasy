@@ -1,9 +1,24 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import net from 'node:net';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const PORT = Number(process.env.PORT || 3000);
+const MAX_RECOVERY_ATTEMPTS = 1;
+const RECOVERY_PATTERNS = [
+  /Cannot find module '\.\/\d+\.js'/i,
+  /webpack-runtime\.js/i,
+  /ChunkLoadError/i,
+  /loading chunk/i,
+];
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT_DIR = path.resolve(__dirname, '..');
+const NEXT_SERVER_DIR = path.join(ROOT_DIR, '.next', 'server');
 
 function checkPortInUse(port) {
   return new Promise((resolve) => {
@@ -19,6 +34,63 @@ function checkPortInUse(port) {
         tester.close(() => resolve(false));
       })
       .listen(port, '0.0.0.0');
+  });
+}
+
+async function removeIfExists(targetPath, recursive = false) {
+  await rm(targetPath, { force: true, recursive });
+}
+
+async function sanitizeServerArtifacts() {
+  if (!existsSync(NEXT_SERVER_DIR)) return;
+
+  console.log('[dev-guard] Очищаю потенційно биті server-артефакти .next ...');
+
+  await Promise.all([
+    removeIfExists(path.join(NEXT_SERVER_DIR, 'chunks'), true),
+    removeIfExists(path.join(NEXT_SERVER_DIR, 'app'), true),
+    removeIfExists(path.join(NEXT_SERVER_DIR, 'pages'), true),
+    removeIfExists(path.join(NEXT_SERVER_DIR, 'webpack-runtime.js')),
+    removeIfExists(path.join(NEXT_SERVER_DIR, 'app-paths-manifest.json')),
+    removeIfExists(path.join(NEXT_SERVER_DIR, 'pages-manifest.json')),
+    removeIfExists(path.join(NEXT_SERVER_DIR, 'server-reference-manifest.json')),
+    removeIfExists(path.join(NEXT_SERVER_DIR, 'server-reference-manifest.js')),
+  ]);
+}
+
+function shouldRecoverFromOutput(text) {
+  return RECOVERY_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+function runNextDev(env) {
+  return new Promise((resolve) => {
+    const child = spawn('npx', ['next', 'dev', '-p', String(PORT)], {
+      env,
+      stdio: ['inherit', 'pipe', 'pipe'],
+      shell: false,
+    });
+
+    let collected = '';
+
+    const onData = (stream, chunk) => {
+      const text = chunk.toString();
+      collected += text;
+      stream.write(text);
+    };
+
+    child.stdout.on('data', (chunk) => onData(process.stdout, chunk));
+    child.stderr.on('data', (chunk) => onData(process.stderr, chunk));
+
+    const forward = (signal) => () => {
+      if (!child.killed) child.kill(signal);
+    };
+
+    process.on('SIGINT', forward('SIGINT'));
+    process.on('SIGTERM', forward('SIGTERM'));
+
+    child.on('exit', (code, signal) => {
+      resolve({ code: code ?? 0, signal, output: collected });
+    });
   });
 }
 
@@ -38,25 +110,30 @@ async function main() {
     CHOKIDAR_USEPOLLING: '1',
   };
 
-  const child = spawn('npx', ['next', 'dev', '-p', String(PORT)], {
-    env,
-    stdio: 'inherit',
-    shell: false,
-  });
+  await sanitizeServerArtifacts();
 
-  const forward = (signal) => () => {
-    if (!child.killed) child.kill(signal);
-  };
+  let attempt = 0;
+  while (attempt <= MAX_RECOVERY_ATTEMPTS) {
+    const result = await runNextDev(env);
 
-  process.on('SIGINT', forward('SIGINT'));
-  process.on('SIGTERM', forward('SIGTERM'));
-
-  child.on('exit', (code, signal) => {
-    if (signal) {
-      console.log(`[dev-guard] next dev завершився сигналом ${signal}`);
+    if (result.signal) {
+      console.log(`[dev-guard] next dev завершився сигналом ${result.signal}`);
+      process.exit(result.code);
     }
-    process.exit(code ?? 0);
-  });
+
+    if (result.code === 0) {
+      process.exit(0);
+    }
+
+    const canRecover = shouldRecoverFromOutput(result.output) && attempt < MAX_RECOVERY_ATTEMPTS;
+    if (!canRecover) {
+      process.exit(result.code);
+    }
+
+    attempt += 1;
+    console.error('[dev-guard] Виявлено зламаний chunk/runtime. Виконую auto-heal і перезапуск...');
+    await sanitizeServerArtifacts();
+  }
 }
 
 main().catch((error) => {
