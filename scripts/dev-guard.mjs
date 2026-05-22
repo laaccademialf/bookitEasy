@@ -7,12 +7,14 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const PORT = Number(process.env.PORT || 3000);
-const MAX_RECOVERY_ATTEMPTS = 1;
+const MAX_RECOVERY_ATTEMPTS = 3;
 const RECOVERY_PATTERNS = [
   /Cannot find module '\.\/\d+\.js'/i,
+  /Cannot find module '\.\/vendor-chunks\//i,
   /webpack-runtime\.js/i,
   /ChunkLoadError/i,
   /loading chunk/i,
+  /Cannot read properties of undefined \(reading 'call'\)/i,
 ];
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -54,25 +56,37 @@ function runNextDev(env) {
     });
 
     let collected = '';
+    let recoverableHit = false;
 
     const onData = (stream, chunk) => {
       const text = chunk.toString();
       collected += text;
       stream.write(text);
+
+      if (!recoverableHit && shouldRecoverFromOutput(text)) {
+        recoverableHit = true;
+        console.error('[dev-guard] Виявлено корупцію runtime/chunk у live-лозі. Перезапускаю dev-сервер...');
+        child.kill('SIGTERM');
+      }
     };
 
     child.stdout.on('data', (chunk) => onData(process.stdout, chunk));
     child.stderr.on('data', (chunk) => onData(process.stderr, chunk));
 
-    const forward = (signal) => () => {
-      if (!child.killed) child.kill(signal);
+    const forwardSigInt = () => {
+      if (!child.killed) child.kill('SIGINT');
+    };
+    const forwardSigTerm = () => {
+      if (!child.killed) child.kill('SIGTERM');
     };
 
-    process.on('SIGINT', forward('SIGINT'));
-    process.on('SIGTERM', forward('SIGTERM'));
+    process.on('SIGINT', forwardSigInt);
+    process.on('SIGTERM', forwardSigTerm);
 
     child.on('exit', (code, signal) => {
-      resolve({ code: code ?? 0, signal, output: collected });
+      process.off('SIGINT', forwardSigInt);
+      process.off('SIGTERM', forwardSigTerm);
+      resolve({ code: code ?? 0, signal, output: collected, recoverableHit });
     });
   });
 }
@@ -98,8 +112,15 @@ async function main() {
   let attempt = 0;
   while (attempt <= MAX_RECOVERY_ATTEMPTS) {
     const result = await runNextDev(env);
+    const canRecoverFromResult = (result.recoverableHit || shouldRecoverFromOutput(result.output)) && attempt < MAX_RECOVERY_ATTEMPTS;
 
     if (result.signal) {
+      if (canRecoverFromResult) {
+        attempt += 1;
+        await sanitizeBuildArtifacts();
+        continue;
+      }
+
       console.log(`[dev-guard] next dev завершився сигналом ${result.signal}`);
       process.exit(result.code);
     }
@@ -108,8 +129,7 @@ async function main() {
       process.exit(0);
     }
 
-    const canRecover = shouldRecoverFromOutput(result.output) && attempt < MAX_RECOVERY_ATTEMPTS;
-    if (!canRecover) {
+    if (!canRecoverFromResult) {
       process.exit(result.code);
     }
 

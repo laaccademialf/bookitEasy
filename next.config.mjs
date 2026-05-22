@@ -7,6 +7,8 @@ const nextConfig = {
   },
   webpack: (config, { dev }) => {
     if (dev) {
+      // In Codespaces/github.dev, filesystem cache can get out of sync and cause missing chunk/module errors.
+      config.cache = false;
       config.watchOptions = {
         poll: 1000,
         aggregateTimeout: 300,
