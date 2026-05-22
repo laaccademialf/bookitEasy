@@ -6,21 +6,23 @@ import { AuthContext } from '../../providers';
 import { createProperty, deleteProperty, getHostProperties, updateProperty, type Property } from '../../../lib/properties';
 import { ensureSecureHostPublicKey, isSecureHostPublicKey, updateUserProfileData } from '../../../lib/auth';
 import { uploadPropertyImages } from '../../../lib/storage';
-import { Edit3, ExternalLink, PlusCircle, Trash2 } from 'lucide-react';
+import { Check, Copy, Edit3, ExternalLink, Home, Plus, Trash2, X } from 'lucide-react';
 import { PageBanner } from '../../../components/PageBanner';
+
+const EMPTY_FORM = {
+  title: '',
+  description: '',
+  pricePerNight: 0,
+  address: '',
+  rooms: 1,
+  guests: 1,
+  amenities: '',
+};
 
 export default function PropertiesPage() {
   const { profile, loading } = useContext(AuthContext);
   const [properties, setProperties] = useState<Property[]>([]);
-  const [form, setForm] = useState({
-    title: '',
-    description: '',
-    pricePerNight: 0,
-    address: '',
-    rooms: 1,
-    guests: 1,
-    amenities: '',
-  });
+  const [form, setForm] = useState(EMPTY_FORM);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [imageFiles, setImageFiles] = useState<FileList | null>(null);
@@ -28,6 +30,8 @@ export default function PropertiesPage() {
   const [status, setStatus] = useState('');
   const [publicHostUsername, setPublicHostUsername] = useState('');
   const [ensuringHostUsername, setEnsuringHostUsername] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     const loadProperties = async () => {
@@ -75,20 +79,20 @@ export default function PropertiesPage() {
 
   const resetForm = () => {
     setEditingId(null);
-    setForm({
-      title: '',
-      description: '',
-      pricePerNight: 0,
-      address: '',
-      rooms: 1,
-      guests: 1,
-      amenities: '',
-    });
+    setExistingImages([]);
+    setImageFiles(null);
+    setForm(EMPTY_FORM);
+  };
+
+  const openCreateModal = () => {
+    resetForm();
+    setIsModalOpen(true);
   };
 
   const handleEdit = (property: Property) => {
     setEditingId(property.id ?? null);
     setExistingImages(property.images ?? []);
+    setImageFiles(null);
     setForm({
       title: property.title,
       description: property.description,
@@ -98,14 +102,35 @@ export default function PropertiesPage() {
       guests: property.guests,
       amenities: property.amenities?.join(', ') ?? '',
     });
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    resetForm();
+  };
+
+  const handleCopyLink = async () => {
+    if (!publicHostUsername || typeof window === 'undefined') return;
+    const url = `${window.location.origin}/host/${publicHostUsername}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      setStatus('Не вдалося скопіювати посилання.');
+      setTimeout(() => setStatus(''), 2500);
+    }
   };
 
   const handleDelete = async (propertyId: string | undefined) => {
     if (!propertyId) return;
+    if (typeof window !== 'undefined' && !window.confirm('Видалити цей обʼєкт?')) return;
     try {
       await deleteProperty(propertyId);
       setProperties(properties.filter((item) => item.id !== propertyId));
       setStatus('Властивість видалено');
+      closeModal();
     } catch {
       setStatus('Не вдалося видалити обʼєкт. Спробуйте ще раз.');
     } finally {
@@ -159,6 +184,7 @@ export default function PropertiesPage() {
       }
 
       resetForm();
+      setIsModalOpen(false);
     } catch (error: any) {
       const code = error?.code ? String(error.code) : '';
       if (code === 'permission-denied') {
@@ -189,77 +215,138 @@ export default function PropertiesPage() {
 
   return (
     <main className="min-h-screen overflow-x-clip bg-slate-50 text-slate-900">
-      <PageBanner title="Обʼєкти" />
-      <div className="w-full px-3 py-5 sm:px-6 sm:py-8 lg:px-6">
-        <div className="mb-6 rounded-3xl border border-slate-200 bg-white p-4 shadow-md sm:mb-8 sm:rounded-[2rem] sm:p-6">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
-            <p className="text-sm text-slate-600">Публічна сторінка орендодавця (для клієнтів):</p>
+      <PageBanner
+        title="Обʼєкти"
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
             {publicHostUsername ? (
-              <div className="mt-2 flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-                <code className="max-w-full break-all rounded-lg bg-white px-3 py-2 text-xs text-slate-800 sm:text-sm">/host/{publicHostUsername}</code>
+              <>
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  title={`Скопіювати посилання /host/${publicHostUsername}`}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-sky-400 hover:text-slate-900 sm:text-sm"
+                >
+                  {linkCopied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+                  {linkCopied ? 'Скопійовано' : 'Копія посилання'}
+                </button>
                 <Link
                   href={`/host/${publicHostUsername}`}
                   target="_blank"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700 sm:w-auto"
+                  title="Відкрити публічну сторінку"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-white p-2 text-slate-700 transition hover:border-sky-400 hover:text-slate-900"
                 >
-                  Відкрити як клієнт <ExternalLink className="h-3.5 w-3.5" />
+                  <ExternalLink className="h-4 w-4" />
                 </Link>
-              </div>
+              </>
             ) : (
-              <p className="mt-2 text-sm text-slate-500">{ensuringHostUsername ? 'Генеруємо посилання...' : 'Посилання ще генерується...'}</p>
+              <span className="text-xs text-slate-500">{ensuringHostUsername ? 'Генеруємо посилання...' : ''}</span>
             )}
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="inline-flex items-center gap-1.5 rounded-full bg-sky-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-sky-400 sm:text-sm"
+            >
+              <Plus className="h-4 w-4" /> Додати
+            </button>
           </div>
-        </div>
+        }
+      />
 
-        <div className="grid gap-4 sm:gap-6 lg:grid-cols-[1.4fr_0.9fr]">
-          <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-lg sm:rounded-[2rem] sm:p-6">
-            <h2 className="text-xl font-semibold text-slate-900 sm:text-2xl">Список об’єктів</h2>
-            <div className="mt-4 space-y-3 sm:mt-6 sm:space-y-4">
-              {properties.length === 0 ? (
-                <p className="text-slate-400">У вас ще немає об’єктів. Додайте перший.</p>
-              ) : (
-                properties.map((property) => (
-                  <div key={property.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm sm:rounded-3xl sm:p-5">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0">
-                        <h3 className="truncate text-lg font-semibold text-slate-900 sm:text-xl">{property.title}</h3>
-                        <p className="mt-2 text-sm text-slate-600">{property.address}</p>
-                        <p className="mt-1 text-sm text-slate-600">{property.rooms} кімнати · {property.guests} гостей</p>
+      <div className="w-full px-3 py-5 sm:px-6 sm:py-8 lg:px-6">
+        {status && (
+          <div className="mb-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm">
+            {status}
+          </div>
+        )}
+
+        {properties.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-10 text-center">
+            <Home className="mx-auto h-10 w-10 text-slate-300" />
+            <p className="mt-3 text-slate-600">У вас ще немає обʼєктів.</p>
+            <button
+              type="button"
+              onClick={openCreateModal}
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-sky-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-sky-400"
+            >
+              <Plus className="h-4 w-4" /> Додати перший обʼєкт
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
+            {properties.map((property) => {
+              const thumb = property.images?.[0];
+              return (
+                <div
+                  key={property.id}
+                  className="group flex aspect-square flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:border-sky-300 hover:shadow-md"
+                >
+                  <div className="relative flex-1 overflow-hidden bg-slate-100">
+                    {thumb ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={thumb}
+                        alt={property.title}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-slate-300">
+                        <Home className="h-10 w-10" />
                       </div>
-                      <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
-                        <button
-                          type="button"
-                          onClick={() => handleEdit(property)}
-                          className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-slate-300 bg-slate-100 px-4 py-2 text-sm text-slate-900 transition hover:border-sky-400 sm:w-auto"
-                        >
-                          <Edit3 className="h-4 w-4" /> Редагувати
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(property.id)}
-                          className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-rose-500 bg-rose-100 px-4 py-2 text-sm text-rose-700 transition hover:bg-rose-200 sm:w-auto"
-                        >
-                          <Trash2 className="h-4 w-4" /> Видалити
-                        </button>
-                      </div>
+                    )}
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-900/80 via-slate-900/30 to-transparent p-2">
+                      <h3 className="truncate text-xs font-semibold text-white sm:text-sm">{property.title}</h3>
+                      <p className="truncate text-[10px] text-slate-200 sm:text-xs">{property.pricePerNight} грн/ніч</p>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
-          </section>
+                  <button
+                    type="button"
+                    onClick={() => handleEdit(property)}
+                    className="flex w-full items-center justify-center gap-1.5 border-t border-slate-200 bg-slate-50 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 sm:text-sm"
+                  >
+                    <Edit3 className="h-3.5 w-3.5" /> Редагувати
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-          <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-lg sm:rounded-[2rem] sm:p-6">
-            <h2 className="text-xl font-semibold text-slate-900 sm:text-2xl">Форма об’єкта</h2>
-            <p className="mt-2 text-sm text-slate-600">Додайте або відредагуйте об’єкт, щоб він з’явився в кабінеті та на персональній сторінці.</p>
-            <form onSubmit={handleSubmit} className="mt-5 space-y-4 sm:mt-6 sm:space-y-5">
+      {isModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={closeModal}
+        >
+          <div
+            className="relative flex max-h-[95vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+              <h2 className="text-lg font-semibold text-slate-900 sm:text-xl">
+                {editingId ? 'Редагувати обʼєкт' : 'Новий обʼєкт'}
+              </h2>
+              <button
+                type="button"
+                onClick={closeModal}
+                className="rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                aria-label="Закрити"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form id="property-form" onSubmit={handleSubmit} className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
               <div>
-                <label className="block text-sm font-medium text-slate-700">Назва об’єкта</label>
+                <label className="block text-sm font-medium text-slate-700">Назва обʼєкта</label>
                 <input
                   value={form.title}
                   onChange={(event) => setForm({ ...form, title: event.target.value })}
                   required
-                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400 sm:rounded-3xl"
+                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400"
                 />
               </div>
               <div>
@@ -268,7 +355,7 @@ export default function PropertiesPage() {
                   value={form.address}
                   onChange={(event) => setForm({ ...form, address: event.target.value })}
                   required
-                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400 sm:rounded-3xl"
+                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400"
                 />
               </div>
               <div>
@@ -276,19 +363,19 @@ export default function PropertiesPage() {
                 <textarea
                   value={form.description}
                   onChange={(event) => setForm({ ...form, description: event.target.value })}
-                  rows={4}
-                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400 sm:rounded-3xl"
+                  rows={3}
+                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400"
                 />
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">Ціна за ніч, грн</label>
+                  <label className="block text-sm font-medium text-slate-700">Ціна, грн/ніч</label>
                   <input
                     type="number"
                     value={form.pricePerNight}
                     onChange={(event) => setForm({ ...form, pricePerNight: Number(event.target.value) })}
                     required
-                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400 sm:rounded-3xl"
+                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400"
                   />
                 </div>
                 <div>
@@ -298,7 +385,7 @@ export default function PropertiesPage() {
                     value={form.rooms}
                     onChange={(event) => setForm({ ...form, rooms: Number(event.target.value) })}
                     required
-                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400 sm:rounded-3xl"
+                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400"
                   />
                 </div>
                 <div>
@@ -308,7 +395,7 @@ export default function PropertiesPage() {
                     value={form.guests}
                     onChange={(event) => setForm({ ...form, guests: Number(event.target.value) })}
                     required
-                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400 sm:rounded-3xl"
+                    className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400"
                   />
                 </div>
               </div>
@@ -317,34 +404,58 @@ export default function PropertiesPage() {
                 <input
                   value={form.amenities}
                   onChange={(event) => setForm({ ...form, amenities: event.target.value })}
-                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400 sm:rounded-3xl"
+                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-sky-400"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700">Фото об’єкта</label>
+                <label className="block text-sm font-medium text-slate-700">Фото обʼєкта</label>
                 <input
                   type="file"
                   accept="image/*"
                   multiple
                   onChange={(event) => setImageFiles(event.target.files)}
-                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none file:mr-4 file:rounded-full file:border-0 file:bg-slate-200 file:px-4 file:py-2 file:text-sm file:text-slate-900 focus:border-sky-400 sm:rounded-3xl"
+                  className="mt-2 w-full rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 text-slate-900 outline-none file:mr-4 file:rounded-full file:border-0 file:bg-slate-200 file:px-4 file:py-2 file:text-sm file:text-slate-900 focus:border-sky-400"
                 />
                 {existingImages.length > 0 && (
-                  <p className="mt-2 text-sm text-slate-400">Завантажено {existingImages.length} фото</p>
+                  <p className="mt-2 text-sm text-slate-500">Завантажено {existingImages.length} фото</p>
                 )}
               </div>
               {status && <p className="text-sm text-slate-700">{status}</p>}
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full rounded-full bg-sky-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-700"
-              >
-                {editingId ? 'Оновити об’єкт' : 'Додати об’єкт'}
-              </button>
             </form>
-          </section>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-5 py-4">
+              {editingId ? (
+                <button
+                  type="button"
+                  onClick={() => handleDelete(editingId)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-rose-300 bg-white px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
+                >
+                  <Trash2 className="h-4 w-4" /> Видалити
+                </button>
+              ) : (
+                <span />
+              )}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                >
+                  Скасувати
+                </button>
+                <button
+                  type="submit"
+                  form="property-form"
+                  disabled={saving}
+                  className="rounded-full bg-sky-500 px-5 py-2 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-slate-400"
+                >
+                  {saving ? 'Збереження...' : editingId ? 'Оновити' : 'Створити'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </main>
   );
 }
