@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import net from 'node:net';
 import path from 'node:path';
@@ -18,7 +17,7 @@ const RECOVERY_PATTERNS = [
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(__dirname, '..');
-const NEXT_SERVER_DIR = path.join(ROOT_DIR, '.next', 'server');
+const NEXT_DIR = path.join(ROOT_DIR, '.next');
 
 function checkPortInUse(port) {
   return new Promise((resolve) => {
@@ -37,25 +36,9 @@ function checkPortInUse(port) {
   });
 }
 
-async function removeIfExists(targetPath, recursive = false) {
-  await rm(targetPath, { force: true, recursive });
-}
-
-async function sanitizeServerArtifacts() {
-  if (!existsSync(NEXT_SERVER_DIR)) return;
-
-  console.log('[dev-guard] Очищаю потенційно биті server-артефакти .next ...');
-
-  await Promise.all([
-    removeIfExists(path.join(NEXT_SERVER_DIR, 'chunks'), true),
-    removeIfExists(path.join(NEXT_SERVER_DIR, 'app'), true),
-    removeIfExists(path.join(NEXT_SERVER_DIR, 'pages'), true),
-    removeIfExists(path.join(NEXT_SERVER_DIR, 'webpack-runtime.js')),
-    removeIfExists(path.join(NEXT_SERVER_DIR, 'app-paths-manifest.json')),
-    removeIfExists(path.join(NEXT_SERVER_DIR, 'pages-manifest.json')),
-    removeIfExists(path.join(NEXT_SERVER_DIR, 'server-reference-manifest.json')),
-    removeIfExists(path.join(NEXT_SERVER_DIR, 'server-reference-manifest.js')),
-  ]);
+async function sanitizeBuildArtifacts() {
+  console.log('[dev-guard] Очищаю .next для консистентного dev-старту...');
+  await rm(NEXT_DIR, { force: true, recursive: true });
 }
 
 function shouldRecoverFromOutput(text) {
@@ -110,7 +93,7 @@ async function main() {
     CHOKIDAR_USEPOLLING: '1',
   };
 
-  await sanitizeServerArtifacts();
+  await sanitizeBuildArtifacts();
 
   let attempt = 0;
   while (attempt <= MAX_RECOVERY_ATTEMPTS) {
@@ -132,7 +115,7 @@ async function main() {
 
     attempt += 1;
     console.error('[dev-guard] Виявлено зламаний chunk/runtime. Виконую auto-heal і перезапуск...');
-    await sanitizeServerArtifacts();
+    await sanitizeBuildArtifacts();
   }
 }
 
