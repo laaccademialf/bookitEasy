@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react';
 
-const HEALTH_PROBE_URL = '/_next/static/chunks/webpack.js';
 const POLL_INTERVAL_MS = 500;
 const POLL_TIMEOUT_MS = 30_000;
 const MIN_RELOAD_GAP_MS = 5_000;
@@ -45,17 +44,22 @@ function shouldRecoverFromResourceError(event: Event | ErrorEvent) {
   return shouldHandleAssetUrl(filename);
 }
 
-async function probeAsset(): Promise<boolean> {
+async function probeRouteReady(): Promise<boolean> {
   try {
-    const response = await fetch(`${HEALTH_PROBE_URL}?probe=${Date.now()}`, {
+    const probeUrl = new URL(window.location.href);
+    probeUrl.searchParams.set('__dev_probe', String(Date.now()));
+
+    const response = await fetch(probeUrl.toString(), {
       method: 'GET',
       cache: 'no-store',
       credentials: 'same-origin',
       headers: { 'Cache-Control': 'no-cache' },
     });
+
     if (!response.ok) return false;
+
     const contentType = response.headers.get('content-type') || '';
-    return contentType.includes('javascript');
+    return contentType.includes('text/html') || contentType.includes('application/json');
   } catch {
     return false;
   }
@@ -127,7 +131,7 @@ export default function DevChunkRecovery() {
       const deadline = Date.now() + POLL_TIMEOUT_MS;
       let healthy = false;
       while (Date.now() < deadline) {
-        healthy = await probeAsset();
+        healthy = await probeRouteReady();
         if (healthy) break;
         await sleep(POLL_INTERVAL_MS);
       }
@@ -165,7 +169,7 @@ export default function DevChunkRecovery() {
 
     const onVisibilityChange = () => {
       if (document.visibilityState !== 'visible') return;
-      probeAsset().then((ok) => {
+      probeRouteReady().then((ok) => {
         if (!ok) void recover('відновлення після перемикання вкладки');
       });
     };
