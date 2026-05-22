@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronLeft, ChevronRight, LucideIcon, Menu, X } from 'lucide-react';
@@ -40,17 +40,23 @@ export default function SectionSidebar({
 
   const desktopSidebarClass = isOpen ? (isCollapsed ? 'lg:w-20' : 'lg:w-72') : 'lg:w-0';
 
+  useEffect(() => {
+    const handleMobileToggle = () => {
+      setMobileOpen((current) => !current);
+    };
+
+    window.addEventListener('bookiteasy:sidebar-mobile-toggle', handleMobileToggle);
+    return () => {
+      window.removeEventListener('bookiteasy:sidebar-mobile-toggle', handleMobileToggle);
+    };
+  }, []);
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setMobileOpen((current) => !current)}
-        className="fixed left-3 top-[4.5rem] z-50 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-800 shadow lg:hidden"
-        aria-label={mobileOpen ? 'Закрити меню' : 'Відкрити меню'}
-      >
-        {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-      </button>
-
       <button
         type="button"
         onClick={onToggleOpen}
@@ -95,7 +101,7 @@ export default function SectionSidebar({
               <button
                 type="button"
                 onClick={onToggleCollapsed}
-                className="hidden shrink-0 rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-100 lg:inline-flex"
+                className="hidden shrink-0 self-start rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-100 lg:inline-flex"
                 aria-label="Згорнути меню"
               >
                 <ChevronLeft className="h-4 w-4" />
