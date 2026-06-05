@@ -168,19 +168,27 @@ export default function PropertiesPage() {
         setStatus('Властивість оновлено');
       } else {
         const newId = await createProperty(propertyPayload);
+        let uploadFailed = false;
         if (imageFiles) {
           try {
             const uploadedUrls = await uploadPropertyImages(newId, imageFiles);
             propertyPayload.images = uploadedUrls;
             await updateProperty(newId, { images: uploadedUrls });
           } catch {
-            setStatus('Обʼєкт створено, але фото не завантажились. Спробуйте додати фото при редагуванні.');
+            uploadFailed = true;
+            setStatus('Обʼєкт збережено, але фото не завантажились. Виберіть фото ще раз і натисніть «Оновити».');
           }
         }
         setProperties((current) => [{ id: newId, ...propertyPayload }, ...current]);
-        setStatus((currentStatus) =>
-          currentStatus || 'Властивість додано. Посилання хоста для клієнта згенеровано нижче.'
-        );
+        if (uploadFailed) {
+          // Switch to edit mode so user can retry photo upload without creating a duplicate
+          setEditingId(newId);
+          setExistingImages(propertyPayload.images);
+          setImageFiles(null);
+          setSaving(false);
+          return;
+        }
+        setStatus('Властивість додано. Посилання хоста для клієнта згенеровано нижче.');
       }
 
       resetForm();

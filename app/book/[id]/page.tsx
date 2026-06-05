@@ -163,6 +163,21 @@ export default function BookingPage() {
           </div>
         </div>
 
+        {property.images && property.images.length > 0 && (
+          <div className="mt-6 flex gap-3 overflow-x-auto pb-1">
+            {property.images.map((url, index) => (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                key={index}
+                src={url}
+                alt={`${property.title} — фото ${index + 1}`}
+                className="h-52 w-auto flex-shrink-0 rounded-2xl object-cover first:h-64 first:w-full first:flex-shrink-0 sm:first:h-72"
+                loading="lazy"
+              />
+            ))}
+          </div>
+        )}
+
         <div className="mt-8 grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
           <div className="space-y-6">
             <article className="rounded-3xl border border-slate-200 bg-slate-50 p-5 sm:p-6">

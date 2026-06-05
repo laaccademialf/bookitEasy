@@ -77,7 +77,21 @@ export default function Home() {
                 whileHover={{ y: -6 }}
                 className="group rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-xl"
               >
-                <div className="h-48 rounded-[1.75rem] bg-slate-100" />
+                <div className="relative h-48 overflow-hidden rounded-[1.75rem] bg-slate-100">
+                    {property.images?.[0] ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={property.images[0]}
+                        alt={property.title}
+                        className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-slate-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9.75L12 3l9 6.75V21H3V9.75z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 21V12h6v9" /></svg>
+                      </div>
+                    )}
+                  </div>
                 <div className="mt-5 space-y-3">
                   <div className="flex items-center justify-between gap-4">
                     <div>
