@@ -1,11 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { DayPicker, type DateRange } from 'react-day-picker';
 import 'react-day-picker/style.css';
-
-const BASE_PRICE_PER_NIGHT = 5000;
+import { getPropertyById, type Property } from '../../../lib/properties';
 
 type UpsellService = {
   id: string;
@@ -45,9 +44,17 @@ function startOfDayUtc(date: Date) {
 
 export default function BookingPage() {
   const params = useParams<{ id: string }>();
+  const [property, setProperty] = useState<Property | null>(null);
+  const [propertyLoading, setPropertyLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [comment, setComment] = useState('');
+
+  useEffect(() => {
+    getPropertyById(params.id)
+      .then((data) => setProperty(data))
+      .finally(() => setPropertyLoading(false));
+  }, [params.id]);
 
   const nights = useMemo(() => {
     const from = dateRange?.from;
@@ -75,10 +82,9 @@ export default function BookingPage() {
     }, 0);
   }, [nights, selectedServices]);
 
-  const stayTotal = nights * BASE_PRICE_PER_NIGHT;
+  const pricePerNight = property?.pricePerNight ?? 0;
+  const stayTotal = nights * pricePerNight;
   const totalToPay = stayTotal + extrasTotal;
-
-  const propertyName = `Об'єкт #${params.id}`;
 
   const toggleService = (serviceId: string) => {
     setSelectedServices((current) => {
@@ -90,18 +96,41 @@ export default function BookingPage() {
     });
   };
 
+  if (propertyLoading) {
+    return (
+      <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
+        <div className="mx-auto max-w-6xl rounded-[2rem] border border-slate-200 bg-white p-10 text-center text-slate-500 shadow-xl">
+          Завантаження об&apos;єкта...
+        </div>
+      </main>
+    );
+  }
+
+  if (!property) {
+    return (
+      <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
+        <div className="mx-auto max-w-6xl rounded-[2rem] border border-rose-200 bg-rose-50 p-10 text-center text-rose-700 shadow-xl">
+          Об&apos;єкт не знайдено.
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900 sm:px-6 lg:px-8">
       <section className="mx-auto max-w-6xl rounded-[2rem] border border-slate-200 bg-white p-6 shadow-xl sm:p-8 lg:p-10">
         <div className="flex flex-col gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Бронювання</p>
-            <h1 className="mt-3 text-2xl font-semibold sm:text-3xl">{propertyName}</h1>
+            <h1 className="mt-3 text-2xl font-semibold sm:text-3xl">{property.title}</h1>
+            {property.description ? (
+              <p className="mt-2 text-sm text-slate-600">{property.description}</p>
+            ) : null}
           </div>
           <div className="rounded-2xl bg-slate-100 px-5 py-4">
             <p className="text-sm text-slate-500">Базова ціна за ніч</p>
             <p className="mt-1 text-2xl font-bold text-slate-900">
-              {BASE_PRICE_PER_NIGHT.toLocaleString('uk-UA')} грн
+              {pricePerNight.toLocaleString('uk-UA')} грн
             </p>
           </div>
         </div>
