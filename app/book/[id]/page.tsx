@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { DayPicker, type DateRange } from 'react-day-picker';
+import { uk } from 'date-fns/locale';
 import 'react-day-picker/style.css';
 import { getPropertyById, type Property } from '../../../lib/properties';
+import { getPropertyBookings } from '../../../lib/bookings';
 
 type UpsellService = {
   id: string;
@@ -46,6 +48,7 @@ export default function BookingPage() {
   const params = useParams<{ id: string }>();
   const [property, setProperty] = useState<Property | null>(null);
   const [propertyLoading, setPropertyLoading] = useState(true);
+  const [bookedDates, setBookedDates] = useState<Date[]>([]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [comment, setComment] = useState('');
@@ -54,7 +57,32 @@ export default function BookingPage() {
     getPropertyById(params.id)
       .then((data) => setProperty(data))
       .finally(() => setPropertyLoading(false));
+
+    getPropertyBookings(params.id).then((bookings) => {
+      const dates: Date[] = [];
+      for (const booking of bookings) {
+        if (booking.status === 'cancelled') continue;
+        const start = new Date(booking.startDate);
+        const end = new Date(booking.endDate);
+        const current = new Date(start);
+        while (current <= end) {
+          dates.push(new Date(current));
+          current.setDate(current.getDate() + 1);
+        }
+      }
+      // also add property-level blocked dates
+      setBookedDates(dates);
+    });
   }, [params.id]);
+
+  // merge property blockedDates once property is loaded
+  useEffect(() => {
+    if (!property?.blockedDates?.length) return;
+    setBookedDates((prev) => [
+      ...prev,
+      ...property.blockedDates!.map((d) => new Date(d)),
+    ]);
+  }, [property]);
 
   const nights = useMemo(() => {
     const from = dateRange?.from;
@@ -140,13 +168,37 @@ export default function BookingPage() {
             <article className="rounded-3xl border border-slate-200 bg-slate-50 p-5 sm:p-6">
               <h2 className="text-lg font-semibold">Оберіть дати проживання</h2>
               <p className="mt-1 text-sm text-slate-600">Виберіть дату заїзду та виїзду на календарі.</p>
+              <style>{`
+                .rdp-day[data-booked="true"] .rdp-day_button {
+                  background-color: #f1f5f9;
+                  color: #94a3b8;
+                  cursor: not-allowed;
+                  text-decoration: line-through;
+                  opacity: 0.6;
+                }
+              `}</style>
               <div className="mt-4 overflow-auto rounded-2xl border border-slate-200 bg-white p-3">
                 <DayPicker
                   mode="range"
+                  locale={uk}
                   selected={dateRange}
                   onSelect={setDateRange}
-                  numberOfMonths={2}
-                  disabled={{ before: new Date() }}
+                  numberOfMonths={1}
+                  disabled={[
+                    { before: new Date() },
+                    ...bookedDates,
+                  ]}
+                  modifiers={{ booked: bookedDates }}
+                  modifiersClassNames={{ booked: 'rdp-day--booked' }}
+                  modifiersStyles={{
+                    booked: {
+                      backgroundColor: '#f1f5f9',
+                      color: '#94a3b8',
+                      textDecoration: 'line-through',
+                      opacity: 0.6,
+                      cursor: 'not-allowed',
+                    },
+                  }}
                   weekStartsOn={1}
                   className="mx-auto"
                 />
