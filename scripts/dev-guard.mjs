@@ -20,6 +20,7 @@ const RECOVERY_PATTERNS = [
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(__dirname, '..');
 const NEXT_DIR = path.join(ROOT_DIR, '.next');
+const IS_WINDOWS = process.platform === 'win32';
 
 function checkPortInUse(port) {
   return new Promise((resolve) => {
@@ -49,10 +50,10 @@ function shouldRecoverFromOutput(text) {
 
 function runNextDev(env) {
   return new Promise((resolve) => {
-    const child = spawn('npx', ['next', 'dev', '-p', String(PORT)], {
+    const child = spawn(IS_WINDOWS ? 'npx.cmd' : 'npx', ['next', 'dev', '-p', String(PORT)], {
       env,
       stdio: ['inherit', 'pipe', 'pipe'],
-      shell: false,
+      shell: IS_WINDOWS,
     });
 
     let collected = '';
