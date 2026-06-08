@@ -6,7 +6,7 @@ import { DayPicker, type DateRange } from 'react-day-picker';
 import { uk } from 'date-fns/locale';
 import 'react-day-picker/style.css';
 import { getPropertyById, type Property } from '../../../lib/properties';
-import { createBooking, getPropertyBookings } from '../../../lib/bookings';
+import { createBooking, getPropertyBookings, type Booking } from '../../../lib/bookings';
 import { AuthContext } from '../../providers';
 
 type UpsellService = {
@@ -45,50 +45,63 @@ function startOfDayUtc(date: Date) {
   return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
+function parseIsoLocal(value: string): Date {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function toIsoLocal(date: Date): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function expandDates(startIso: string, endIso: string): Date[] {
+  const start = parseIsoLocal(startIso);
+  const end = parseIsoLocal(endIso);
+  const current = new Date(start);
+  const dates: Date[] = [];
+
+  while (current <= end) {
+    dates.push(new Date(current));
+    current.setDate(current.getDate() + 1);
+  }
+
+  return dates;
+}
+
 export default function BookingPage() {
-  const params = useParams<{ id: string }>();
   const router = useRouter();
+  const params = useParams<{ id: string }>();
   const { user, loading: authLoading } = useContext(AuthContext);
   const [property, setProperty] = useState<Property | null>(null);
   const [propertyLoading, setPropertyLoading] = useState(true);
+  const [propertyBookings, setPropertyBookings] = useState<Booking[]>([]);
   const [bookedDates, setBookedDates] = useState<Date[]>([]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [bookingStatus, setBookingStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [bookingError, setBookingError] = useState('');
+  const [status, setStatus] = useState('');
 
   useEffect(() => {
-    getPropertyById(params.id)
-      .then((data) => setProperty(data))
+    Promise.all([getPropertyById(params.id), getPropertyBookings(params.id)])
+      .then(([propertyData, bookingsData]) => {
+        setProperty(propertyData);
+        setPropertyBookings(bookingsData);
+      })
       .finally(() => setPropertyLoading(false));
-
-    getPropertyBookings(params.id).then((bookings) => {
-      const dates: Date[] = [];
-      for (const booking of bookings) {
-        if (booking.status === 'cancelled') continue;
-        const start = new Date(booking.startDate);
-        const end = new Date(booking.endDate);
-        const current = new Date(start);
-        while (current <= end) {
-          dates.push(new Date(current));
-          current.setDate(current.getDate() + 1);
-        }
-      }
-      // also add property-level blocked dates
-      setBookedDates(dates);
-    });
   }, [params.id]);
 
-  // merge property blockedDates once property is loaded
   useEffect(() => {
-    if (!property?.blockedDates?.length) return;
-    setBookedDates((prev) => [
-      ...prev,
-      ...property.blockedDates!.map((d) => new Date(d)),
-    ]);
-  }, [property]);
+    const bookingDates = propertyBookings
+      .filter((booking) => booking.status !== 'cancelled')
+      .flatMap((booking) => expandDates(booking.startDate, booking.endDate));
+
+    const blockedDates = (property?.blockedDates || []).map((date) => parseIsoLocal(date));
+    setBookedDates([...bookingDates, ...blockedDates]);
+  }, [propertyBookings, property]);
 
   const nights = useMemo(() => {
     const from = dateRange?.from;
@@ -120,6 +133,13 @@ export default function BookingPage() {
   const stayTotal = nights * pricePerNight;
   const totalToPay = stayTotal + extrasTotal;
 
+  const myBookings = useMemo(() => {
+    if (!user) return [];
+    return propertyBookings
+      .filter((booking) => booking.clientId === user.uid && booking.status !== 'cancelled')
+      .sort((a, b) => a.startDate.localeCompare(b.startDate));
+  }, [propertyBookings, user]);
+
   const toggleService = (serviceId: string) => {
     setSelectedServices((current) => {
       if (current.includes(serviceId)) {
@@ -130,10 +150,8 @@ export default function BookingPage() {
     });
   };
 
-  const toIso = (date: Date) => date.toISOString().slice(0, 10);
-
-  const handleBooking = async () => {
-    if (!dateRange?.from || !dateRange?.to || !property) return;
+  const handleConfirmBooking = async () => {
+    if (!property || !dateRange?.from || !dateRange?.to || nights <= 0) return;
 
     if (!user) {
       router.push(`/login?redirect=/book/${params.id}`);
@@ -141,22 +159,31 @@ export default function BookingPage() {
     }
 
     setSubmitting(true);
-    setBookingError('');
+    setStatus('');
 
     try {
-      await createBooking({
+      const startDate = toIsoLocal(dateRange.from);
+      const endDate = toIsoLocal(dateRange.to);
+
+      const bookingPayload: Omit<Booking, 'id' | 'createdAt'> = {
         propertyId: params.id,
         clientId: user.uid,
         hostId: property.hostId,
-        startDate: toIso(dateRange.from),
-        endDate: toIso(dateRange.to),
+        startDate,
+        endDate,
         totalPrice: totalToPay,
         status: 'pending',
-      });
-      setBookingStatus('success');
-    } catch (err: any) {
-      setBookingError(err?.message || 'Не вдалося створити бронювання. Спробуйте ще раз.');
-      setBookingStatus('error');
+      };
+
+      await createBooking(bookingPayload);
+
+      setPropertyBookings((current) => [...current, bookingPayload]);
+      setDateRange(undefined);
+      setSelectedServices([]);
+      setComment('');
+      setStatus('Бронювання надіслано. Ці дати заблоковано для інших клієнтів.');
+    } catch {
+      setStatus('Не вдалося підтвердити бронювання. Спробуйте ще раз.');
     } finally {
       setSubmitting(false);
     }
@@ -296,6 +323,36 @@ export default function BookingPage() {
                 className="mt-4 w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-slate-500"
               />
             </article>
+
+            <article className="rounded-3xl border border-slate-200 bg-slate-50 p-5 sm:p-6">
+              <h2 className="text-lg font-semibold">Ваші бронювання цього обʼєкта</h2>
+              <div className="mt-3 space-y-2">
+                {myBookings.length === 0 ? (
+                  <p className="text-sm text-slate-500">У вас ще немає активних бронювань цього обʼєкта.</p>
+                ) : (
+                  myBookings.map((booking) => (
+                    <div
+                      key={`${booking.startDate}-${booking.endDate}-${booking.totalPrice}`}
+                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-semibold text-slate-900">
+                          {booking.startDate} → {booking.endDate}
+                        </p>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                          booking.status === 'confirmed'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-amber-100 text-amber-700'
+                        }`}>
+                          {booking.status === 'confirmed' ? 'Підтверджено' : 'Очікує підтвердження'}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-slate-600">Сума: {booking.totalPrice.toLocaleString('uk-UA')} грн</p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </article>
           </div>
 
           <aside className="h-fit rounded-3xl border border-slate-200 bg-slate-900 p-6 text-white shadow-lg">
@@ -318,31 +375,17 @@ export default function BookingPage() {
               </div>
             </div>
 
-            {bookingStatus === 'success' ? (
-              <div className="mt-7 rounded-2xl bg-emerald-500/20 px-4 py-4 text-center text-sm font-semibold text-emerald-300">
-                ✓ Бронювання надіслано! Хост підтвердить найближчим часом.
-              </div>
-            ) : (
-              <>
-                {bookingError && (
-                  <p className="mt-4 rounded-2xl bg-rose-500/20 px-4 py-3 text-sm text-rose-300">{bookingError}</p>
-                )}
-                {!user && !authLoading && (
-                  <p className="mt-4 text-center text-xs text-slate-400">
-                    Для бронювання потрібно{' '}
-                    <a href={`/login?redirect=/book/${params.id}`} className="underline hover:text-white">увійти</a>
-                  </p>
-                )}
-                <button
-                  type="button"
-                  onClick={handleBooking}
-                  disabled={nights === 0 || submitting}
-                  className="mt-7 w-full rounded-full bg-emerald-400 px-6 py-4 text-base font-bold text-slate-900 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {submitting ? 'Надсилаємо...' : `Підтвердити бронювання — ${totalToPay.toLocaleString('uk-UA')} грн`}
-                </button>
-              </>
-            )}
+            <button
+              type="button"
+              onClick={handleConfirmBooking}
+              className="mt-7 w-full rounded-full bg-emerald-400 px-6 py-4 text-base font-bold text-slate-900 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={nights === 0 || submitting || authLoading}
+            >
+              {submitting
+                ? 'Підтвердження...'
+                : `Підтвердити бронювання — ${totalToPay.toLocaleString('uk-UA')} грн`}
+            </button>
+            {status ? <p className="mt-3 text-sm text-slate-300">{status}</p> : null}
           </aside>
         </div>
       </section>
