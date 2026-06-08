@@ -80,12 +80,12 @@ export async function getHostCleaningTickets(hostId: string): Promise<CleaningTi
 
 export async function syncCleaningTicketsForHost(hostId: string): Promise<void> {
   const [bookings, existingTickets] = await Promise.all([
-    getHostBookings(hostId),
+    getHostBookings(hostId, true),
     getHostCleaningTickets(hostId),
   ]);
 
   const desiredTickets = bookings
-    .filter((booking) => booking.status !== 'cancelled')
+    .filter((booking) => booking.status === 'confirmed')
     .flatMap((booking) => buildTicketsForBooking(booking));
 
   const desiredMap = new Map(desiredTickets.map((ticket) => [ticket.id, ticket]));

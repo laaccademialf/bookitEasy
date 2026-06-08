@@ -37,9 +37,9 @@ export async function createBooking(booking: Omit<Booking, 'id' | 'createdAt'>) 
   return docRef.id;
 }
 
-export async function getHostBookings(hostId: string): Promise<Booking[]> {
+export async function getHostBookings(hostId: string, forceRefresh = false): Promise<Booking[]> {
   const cached = hostBookingsCache.get(hostId);
-  if (cached && cached.expiresAt > Date.now()) {
+  if (!forceRefresh && cached && cached.expiresAt > Date.now()) {
     return cached.data;
   }
 

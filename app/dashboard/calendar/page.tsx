@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import { AuthContext } from '../../providers';
 import { addBlockedDate, getHostProperties, type Property } from '../../../lib/properties';
 import { getHostBookings, updateBookingStatus, type Booking } from '../../../lib/bookings';
+import { syncCleaningTicketsForHost } from '../../../lib/cleaning';
 import { fetchUsers, type UserProfile } from '../../../lib/auth';
 import { PageBanner } from '../../../components/PageBanner';
 
@@ -101,6 +102,9 @@ export default function CalendarPage() {
         if (propertiesData.length > 0) {
           setSelectedProperty((current) => current || propertiesData[0].id || '');
         }
+
+        // Keep cleaning tickets aligned with confirmed bookings.
+        await syncCleaningTicketsForHost(profile.uid);
       } catch {
         setStatus('Не вдалося завантажити календар. Оновіть сторінку.');
       }
@@ -213,9 +217,12 @@ export default function CalendarPage() {
   }, [bookings]);
 
   const handleUpdateStatus = async (bookingId: string, newStatus: Booking['status']) => {
+    if (!profile?.uid) return;
+
     setUpdatingBookingId(bookingId);
     try {
       await updateBookingStatus(bookingId, newStatus);
+      await syncCleaningTicketsForHost(profile.uid);
       setBookings((current) =>
         current.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b)),
       );
