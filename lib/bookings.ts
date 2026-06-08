@@ -29,6 +29,7 @@ export function getCheckOutTime(booking?: Booking): string {
 }
 
 const bookingsCollection = collection(firestore, 'bookings');
+const propertiesCollection = collection(firestore, 'properties');
 const BOOKINGS_CACHE_TTL_MS = 10000;
 const hostBookingsCache = new Map<string, { data: Booking[]; expiresAt: number }>();
 const clientBookingsCache = new Map<string, { data: Booking[]; expiresAt: number }>();
@@ -71,6 +72,13 @@ async function syncPropertyReservedDates(propertyId: string) {
     reservedDates: Array.from(activeDates).sort(),
     updatedAt: serverTimestamp(),
   });
+}
+
+export async function syncReservedDatesForHost(hostId: string) {
+  const propertiesSnapshot = await getDocs(query(propertiesCollection, where('hostId', '==', hostId)));
+  await Promise.all(
+    propertiesSnapshot.docs.map((propertyDoc) => syncPropertyReservedDates(propertyDoc.id)),
+  );
 }
 
 function resetBookingsCache() {

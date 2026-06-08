@@ -1,11 +1,15 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import HostSidebar from '../../components/HostSidebar';
+import { AuthContext } from '../providers';
+import { syncReservedDatesForHost } from '../../lib/bookings';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { profile } = useContext(AuthContext);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const didSyncRef = useRef<string | null>(null);
 
   const desktopPadding = !isSidebarOpen ? 'lg:pl-0' : isSidebarCollapsed ? 'lg:pl-20' : 'lg:pl-72';
 
@@ -17,6 +21,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       window.dispatchEvent(new CustomEvent('bookiteasy:layout-sidebar-width', { detail: { width: 0 } }));
     };
   }, [isSidebarCollapsed, isSidebarOpen]);
+
+  useEffect(() => {
+    if (!profile?.uid || profile.role !== 'host') {
+      return;
+    }
+
+    if (didSyncRef.current === profile.uid) {
+      return;
+    }
+
+    didSyncRef.current = profile.uid;
+    syncReservedDatesForHost(profile.uid).catch(() => {
+      didSyncRef.current = null;
+    });
+  }, [profile]);
 
   return (
     <div className="min-h-screen">
