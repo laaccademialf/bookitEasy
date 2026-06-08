@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useContext, useEffect, useMemo, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { DayPicker, type DateRange } from 'react-day-picker';
 import { uk } from 'date-fns/locale';
 import 'react-day-picker/style.css';
 import { getPropertyById, type Property } from '../../../lib/properties';
-import { getPropertyBookings } from '../../../lib/bookings';
+import { createBooking, getPropertyBookings } from '../../../lib/bookings';
+import { AuthContext } from '../../providers';
 
 type UpsellService = {
   id: string;
@@ -46,12 +47,17 @@ function startOfDayUtc(date: Date) {
 
 export default function BookingPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
+  const { user, loading: authLoading } = useContext(AuthContext);
   const [property, setProperty] = useState<Property | null>(null);
   const [propertyLoading, setPropertyLoading] = useState(true);
   const [bookedDates, setBookedDates] = useState<Date[]>([]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [bookingStatus, setBookingStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [bookingError, setBookingError] = useState('');
 
   useEffect(() => {
     getPropertyById(params.id)
@@ -122,6 +128,38 @@ export default function BookingPage() {
 
       return [...current, serviceId];
     });
+  };
+
+  const toIso = (date: Date) => date.toISOString().slice(0, 10);
+
+  const handleBooking = async () => {
+    if (!dateRange?.from || !dateRange?.to || !property) return;
+
+    if (!user) {
+      router.push(`/login?redirect=/book/${params.id}`);
+      return;
+    }
+
+    setSubmitting(true);
+    setBookingError('');
+
+    try {
+      await createBooking({
+        propertyId: params.id,
+        clientId: user.uid,
+        hostId: property.hostId,
+        startDate: toIso(dateRange.from),
+        endDate: toIso(dateRange.to),
+        totalPrice: totalToPay,
+        status: 'pending',
+      });
+      setBookingStatus('success');
+    } catch (err: any) {
+      setBookingError(err?.message || 'Не вдалося створити бронювання. Спробуйте ще раз.');
+      setBookingStatus('error');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (propertyLoading) {
@@ -280,13 +318,31 @@ export default function BookingPage() {
               </div>
             </div>
 
-            <button
-              type="button"
-              className="mt-7 w-full rounded-full bg-emerald-400 px-6 py-4 text-base font-bold text-slate-900 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={nights === 0}
-            >
-              Підтвердити бронювання
-            </button>
+            {bookingStatus === 'success' ? (
+              <div className="mt-7 rounded-2xl bg-emerald-500/20 px-4 py-4 text-center text-sm font-semibold text-emerald-300">
+                ✓ Бронювання надіслано! Хост підтвердить найближчим часом.
+              </div>
+            ) : (
+              <>
+                {bookingError && (
+                  <p className="mt-4 rounded-2xl bg-rose-500/20 px-4 py-3 text-sm text-rose-300">{bookingError}</p>
+                )}
+                {!user && !authLoading && (
+                  <p className="mt-4 text-center text-xs text-slate-400">
+                    Для бронювання потрібно{' '}
+                    <a href={`/login?redirect=/book/${params.id}`} className="underline hover:text-white">увійти</a>
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={handleBooking}
+                  disabled={nights === 0 || submitting}
+                  className="mt-7 w-full rounded-full bg-emerald-400 px-6 py-4 text-base font-bold text-slate-900 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {submitting ? 'Надсилаємо...' : `Підтвердити бронювання — ${totalToPay.toLocaleString('uk-UA')} грн`}
+                </button>
+              </>
+            )}
           </aside>
         </div>
       </section>
