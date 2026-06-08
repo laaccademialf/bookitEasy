@@ -4,7 +4,7 @@ import React, { useContext, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthContext } from '../app/providers';
 import SectionSidebar, { SectionSidebarItem } from './SectionSidebar';
-import { Building2, CalendarDays, LayoutDashboard, LineChart } from 'lucide-react';
+import { Building2, CalendarDays, LayoutDashboard, LineChart, Sparkles } from 'lucide-react';
 
 interface HostSidebarProps {
   isOpen: boolean;
@@ -17,6 +17,7 @@ const NAV: SectionSidebarItem[] = [
   { href: '/dashboard', label: 'Огляд', icon: LayoutDashboard, exact: true },
   { href: '/dashboard/properties', label: 'Мої обʼєкти', icon: Building2 },
   { href: '/dashboard/calendar', label: 'Календар', icon: CalendarDays },
+  { href: '/dashboard/cleaning', label: 'Прибирання', icon: Sparkles },
   { href: '/dashboard/finances', label: 'Фінансові звіти', icon: LineChart },
 ];
 

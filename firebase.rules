@@ -42,5 +42,13 @@ service cloud.firestore {
     match /expenses/{expenseId} {
       allow read, create, update, delete: if isSignedIn() && (request.auth.uid == resource.data.hostId || request.auth.uid == request.resource.data.hostId || isAdmin());
     }
+
+    match /cleaningTickets/{ticketId} {
+      allow read, create, update, delete: if isSignedIn() && (
+        request.auth.uid == resource.data.hostId ||
+        request.auth.uid == request.resource.data.hostId ||
+        isAdmin()
+      );
+    }
   }
 }
