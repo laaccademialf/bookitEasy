@@ -34,12 +34,17 @@ export default function InventoryPage() {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const loadData = async (hostId: string) => {
-    const [propsData, assetsData] = await Promise.all([
-      getHostProperties(hostId),
-      getHostFixedAssets(hostId),
-    ]);
+    // Properties always load — they have public read rights.
+    const propsData = await getHostProperties(hostId);
     setProperties(propsData);
-    setAssets(assetsData);
+
+    // Fixed assets may fail if Firestore rules are not yet deployed.
+    try {
+      const assetsData = await getHostFixedAssets(hostId);
+      setAssets(assetsData);
+    } catch {
+      // Leave existing assets state; do not block the page.
+    }
   };
 
   useEffect(() => {
@@ -162,7 +167,7 @@ export default function InventoryPage() {
             <button
               type="button"
               onClick={openForm}
-              disabled={properties.length === 0 || syncing}
+              disabled={properties.length === 0}
               className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               + Додати ОЗ
