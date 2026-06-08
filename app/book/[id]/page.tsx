@@ -6,7 +6,7 @@ import { DayPicker, type DateRange } from 'react-day-picker';
 import { uk } from 'date-fns/locale';
 import 'react-day-picker/style.css';
 import { getPropertyById, type Property } from '../../../lib/properties';
-import { createBooking, getPropertyBookings, type Booking } from '../../../lib/bookings';
+import { createBooking, getClientBookings, getPropertyBookings, type Booking } from '../../../lib/bookings';
 import { AuthContext } from '../../providers';
 
 type UpsellService = {
@@ -86,13 +86,60 @@ export default function BookingPage() {
   const [status, setStatus] = useState('');
 
   useEffect(() => {
-    Promise.all([getPropertyById(params.id), getPropertyBookings(params.id)])
-      .then(([propertyData, bookingsData]) => {
+    if (!params.id) {
+      setPropertyLoading(false);
+      return;
+    }
+
+    getPropertyById(params.id)
+      .then((propertyData) => {
         setProperty(propertyData);
-        setPropertyBookings(bookingsData);
       })
-      .finally(() => setPropertyLoading(false));
+      .finally(() => {
+        setPropertyLoading(false);
+      });
   }, [params.id]);
+
+  useEffect(() => {
+    if (!params.id) {
+      setPropertyBookings([]);
+      return;
+    }
+
+    let isActive = true;
+
+    const loadBookings = async () => {
+      try {
+        const allByProperty = await getPropertyBookings(params.id);
+        if (!isActive) return;
+        setPropertyBookings(allByProperty);
+        return;
+      } catch {
+        // Non-host clients may not have permission to read all bookings for property.
+      }
+
+      if (!user) {
+        if (!isActive) return;
+        setPropertyBookings([]);
+        return;
+      }
+
+      try {
+        const mine = await getClientBookings(user.uid);
+        if (!isActive) return;
+        setPropertyBookings(mine.filter((booking) => booking.propertyId === params.id));
+      } catch {
+        if (!isActive) return;
+        setPropertyBookings([]);
+      }
+    };
+
+    loadBookings();
+
+    return () => {
+      isActive = false;
+    };
+  }, [params.id, user]);
 
   useEffect(() => {
     const bookingDates = propertyBookings
