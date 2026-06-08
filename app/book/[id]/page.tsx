@@ -146,7 +146,14 @@ export default function BookingPage() {
       .filter((booking) => booking.status !== 'cancelled')
       .flatMap((booking) => expandDates(booking.startDate, booking.endDate));
 
+    const reservedDates = (property?.reservedDates || []).map((date) => parseIsoLocal(date));
     const blockedDates = (property?.blockedDates || []).map((date) => parseIsoLocal(date));
+
+    if (reservedDates.length > 0) {
+      setBookedDates([...reservedDates, ...blockedDates]);
+      return;
+    }
+
     setBookedDates([...bookingDates, ...blockedDates]);
   }, [propertyBookings, property]);
 

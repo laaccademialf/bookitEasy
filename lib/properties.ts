@@ -25,6 +25,7 @@ export interface Property {
   guests: number;
   amenities: string[];
   blockedDates?: string[];
+  reservedDates?: string[];
   createdAt?: any;
   updatedAt?: any;
 }
@@ -54,6 +55,7 @@ export async function createProperty(property: Omit<Property, 'id' | 'createdAt'
     images: property.images || [],
     amenities: property.amenities || [],
     blockedDates: property.blockedDates || [],
+    reservedDates: property.reservedDates || [],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });

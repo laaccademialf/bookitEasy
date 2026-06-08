@@ -1,4 +1,4 @@
-import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { firestore } from './firebase';
 
 export type BookingStatus = 'pending' | 'confirmed' | 'cancelled';
@@ -34,6 +34,45 @@ const hostBookingsCache = new Map<string, { data: Booking[]; expiresAt: number }
 const clientBookingsCache = new Map<string, { data: Booking[]; expiresAt: number }>();
 const propertyBookingsCache = new Map<string, { data: Booking[]; expiresAt: number }>();
 
+function expandDateRange(startDate: string, endDate: string): string[] {
+  const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+  const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+  const current = new Date(startYear, startMonth - 1, startDay);
+  const end = new Date(endYear, endMonth - 1, endDay);
+  const dates: string[] = [];
+
+  while (current <= end) {
+    const year = current.getFullYear();
+    const month = `${current.getMonth() + 1}`.padStart(2, '0');
+    const day = `${current.getDate()}`.padStart(2, '0');
+    dates.push(`${year}-${month}-${day}`);
+    current.setDate(current.getDate() + 1);
+  }
+
+  return dates;
+}
+
+async function syncPropertyReservedDates(propertyId: string) {
+  const bookingsSnapshot = await getDocs(query(bookingsCollection, where('propertyId', '==', propertyId)));
+  const activeDates = new Set<string>();
+
+  bookingsSnapshot.docs.forEach((docSnap) => {
+    const booking = docSnap.data() as Booking;
+    if (booking.status === 'cancelled') {
+      return;
+    }
+
+    expandDateRange(booking.startDate, booking.endDate).forEach((date) => {
+      activeDates.add(date);
+    });
+  });
+
+  await updateDoc(doc(firestore, 'properties', propertyId), {
+    reservedDates: Array.from(activeDates).sort(),
+    updatedAt: serverTimestamp(),
+  });
+}
+
 function resetBookingsCache() {
   hostBookingsCache.clear();
   clientBookingsCache.clear();
@@ -46,6 +85,7 @@ export async function createBooking(booking: Omit<Booking, 'id' | 'createdAt'>) 
     status: booking.status || 'pending',
     createdAt: serverTimestamp(),
   });
+  await syncPropertyReservedDates(booking.propertyId);
   resetBookingsCache();
   return docRef.id;
 }
@@ -77,7 +117,12 @@ export async function getClientBookings(clientId: string): Promise<Booking[]> {
 }
 
 export async function updateBookingStatus(bookingId: string, status: BookingStatus): Promise<void> {
+  const bookingSnapshot = await getDoc(doc(bookingsCollection, bookingId));
   await updateDoc(doc(bookingsCollection, bookingId), { status });
+  const booking = bookingSnapshot.data() as Booking | undefined;
+  if (booking?.propertyId) {
+    await syncPropertyReservedDates(booking.propertyId);
+  }
   resetBookingsCache();
 }
 
