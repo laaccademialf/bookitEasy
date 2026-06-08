@@ -248,6 +248,20 @@ export default function CalendarPage() {
       .sort((a, b) => a.startDate.localeCompare(b.startDate));
   }, [bookings]);
 
+  const selectedBookingId = useMemo(() => {
+    if (!selectedCell) return null;
+    if (selectedCell.booking.id) return selectedCell.booking.id;
+
+    const match = bookings.find((booking) =>
+      booking.propertyId === selectedCell.booking.propertyId &&
+      booking.clientId === selectedCell.booking.clientId &&
+      booking.startDate === selectedCell.booking.startDate &&
+      booking.endDate === selectedCell.booking.endDate,
+    );
+
+    return match?.id ?? null;
+  }, [bookings, selectedCell]);
+
   const handleUpdateStatus = async (bookingId: string, newStatus: Booking['status']) => {
     if (!profile?.uid || !bookingId) return;
 
@@ -255,15 +269,13 @@ export default function CalendarPage() {
     try {
       await updateBookingStatus(bookingId, newStatus);
       await syncCleaningTicketsForHost(profile.uid);
-      setBookings((current) =>
-        current.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b)),
+      const freshBookings = await getHostBookings(profile.uid, true);
+      setBookings(freshBookings);
+      setSelectedCell((current) =>
+        current ? { ...current, booking: { ...current.booking, status: newStatus } } : null,
       );
-      
-      // Close modal after successful update
-      setSelectedCell(null);
-      
-      // Show success message
-      setStatus(newStatus === 'confirmed' ? 'Бронювання підтверджено! 🎉' : 'Бронювання скасовано');
+
+      setStatus(newStatus === 'confirmed' ? 'Бронювання підтверджено' : 'Бронювання скасовано');
       setTimeout(() => setStatus(''), 3000);
     } catch (error) {
       console.error('Error updating booking status:', error);
@@ -674,22 +686,22 @@ export default function CalendarPage() {
                 </div>
               )}
 
-              {selectedCell.booking.status !== 'cancelled' && selectedCell.booking.id && (
+              {selectedCell.booking.status !== 'cancelled' && (
                 <div className="flex gap-2 pt-1">
                   {selectedCell.booking.status === 'pending' && (
                     <button
                       type="button"
-                      disabled={updatingBookingId === selectedCell.booking.id}
-                      onClick={() => handleUpdateStatus(selectedCell.booking.id!, 'confirmed')}
+                      disabled={!selectedBookingId || updatingBookingId === selectedBookingId}
+                      onClick={() => selectedBookingId && handleUpdateStatus(selectedBookingId, 'confirmed')}
                       className="flex-1 rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {updatingBookingId === selectedCell.booking.id ? 'Зберігаєм...' : '✓ Підтвердити'}
+                      {updatingBookingId === selectedBookingId ? 'Зберігаєм...' : '✓ Підтвердити'}
                     </button>
                   )}
                   <button
                     type="button"
-                    disabled={updatingBookingId === selectedCell.booking.id}
-                    onClick={() => handleUpdateStatus(selectedCell.booking.id!, 'cancelled')}
+                    disabled={!selectedBookingId || updatingBookingId === selectedBookingId}
+                    onClick={() => selectedBookingId && handleUpdateStatus(selectedBookingId, 'cancelled')}
                     className="flex-1 rounded-full border border-rose-300 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     ✕ Скасувати

@@ -425,6 +425,23 @@ export default function BookingPage() {
               </div>
             </div>
 
+            {selectedServices.length > 0 && (
+              <div className="mt-6 rounded-2xl border border-slate-700 bg-slate-800/50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Обрані послуги</p>
+                <div className="mt-3 space-y-2">
+                  {UPSELL_SERVICES.filter((service) => selectedServices.includes(service.id)).map((service) => (
+                    <div key={service.id} className="flex items-start gap-2 text-sm">
+                      <span className="mt-0.5 flex-shrink-0 text-emerald-400">✓</span>
+                      <div className="flex-1">
+                        <p className="font-semibold text-slate-100">{service.label}</p>
+                        <p className="text-xs text-slate-400">{service.details}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <button
               type="button"
               onClick={handleConfirmBooking}
