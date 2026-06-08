@@ -1,4 +1,4 @@
-import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
 import { firestore } from './firebase';
 
 export type BookingStatus = 'pending' | 'confirmed' | 'cancelled';
@@ -20,6 +20,18 @@ export interface Booking {
   createdAt?: any;
 }
 
+export interface BookingAvailability {
+  id?: string;
+  propertyId: string;
+  hostId: string;
+  clientId: string;
+  startDate: string;
+  endDate: string;
+  status: BookingStatus;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
 export function getCheckInTime(booking?: Booking): string {
   return booking?.earlyCheckIn ? '09:00' : '12:00';
 }
@@ -29,11 +41,13 @@ export function getCheckOutTime(booking?: Booking): string {
 }
 
 const bookingsCollection = collection(firestore, 'bookings');
+const bookingAvailabilityCollection = collection(firestore, 'bookingAvailability');
 const propertiesCollection = collection(firestore, 'properties');
 const BOOKINGS_CACHE_TTL_MS = 10000;
 const hostBookingsCache = new Map<string, { data: Booking[]; expiresAt: number }>();
 const clientBookingsCache = new Map<string, { data: Booking[]; expiresAt: number }>();
 const propertyBookingsCache = new Map<string, { data: Booking[]; expiresAt: number }>();
+const propertyAvailabilityCache = new Map<string, { data: BookingAvailability[]; expiresAt: number }>();
 
 function expandDateRange(startDate: string, endDate: string): string[] {
   const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
@@ -74,17 +88,74 @@ async function syncPropertyReservedDates(propertyId: string) {
   });
 }
 
-export async function syncReservedDatesForHost(hostId: string) {
-  const propertiesSnapshot = await getDocs(query(propertiesCollection, where('hostId', '==', hostId)));
-  await Promise.all(
-    propertiesSnapshot.docs.map((propertyDoc) => syncPropertyReservedDates(propertyDoc.id)),
+async function upsertBookingAvailability(
+  bookingId: string,
+  booking: Omit<BookingAvailability, 'id' | 'createdAt' | 'updatedAt'>,
+  includeCreatedAt = false,
+) {
+  await setDoc(
+    doc(bookingAvailabilityCollection, bookingId),
+    {
+      ...booking,
+      ...(includeCreatedAt ? { createdAt: serverTimestamp() } : {}),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
   );
+}
+
+export async function syncReservedDatesForHost(hostId: string) {
+  const [propertiesSnapshot, bookingsSnapshot] = await Promise.all([
+    getDocs(query(propertiesCollection, where('hostId', '==', hostId))),
+    getDocs(query(bookingsCollection, where('hostId', '==', hostId))),
+  ]);
+
+  const activeDatesByProperty = new Map<string, Set<string>>();
+
+  await Promise.all(
+    bookingsSnapshot.docs.map(async (bookingDoc) => {
+      const booking = bookingDoc.data() as Booking;
+
+      await upsertBookingAvailability(
+        bookingDoc.id,
+        {
+          propertyId: booking.propertyId,
+          hostId: booking.hostId,
+          clientId: booking.clientId,
+          startDate: booking.startDate,
+          endDate: booking.endDate,
+          status: booking.status,
+        },
+        true,
+      );
+
+      if (booking.status === 'cancelled') {
+        return;
+      }
+
+      const propertyDates = activeDatesByProperty.get(booking.propertyId) || new Set<string>();
+      expandDateRange(booking.startDate, booking.endDate).forEach((date) => propertyDates.add(date));
+      activeDatesByProperty.set(booking.propertyId, propertyDates);
+    }),
+  );
+
+  await Promise.all(
+    propertiesSnapshot.docs.map((propertyDoc) =>
+      updateDoc(doc(firestore, 'properties', propertyDoc.id), {
+        reservedDates: Array.from(activeDatesByProperty.get(propertyDoc.id) || []).sort(),
+        updatedAt: serverTimestamp(),
+      })
+    ),
+  );
+
+  propertyAvailabilityCache.clear();
 }
 
 function resetBookingsCache() {
   hostBookingsCache.clear();
   clientBookingsCache.clear();
   propertyBookingsCache.clear();
+  propertyAvailabilityCache.clear();
 }
 
 export async function createBooking(booking: Omit<Booking, 'id' | 'createdAt'>) {
@@ -93,7 +164,30 @@ export async function createBooking(booking: Omit<Booking, 'id' | 'createdAt'>) 
     status: booking.status || 'pending',
     createdAt: serverTimestamp(),
   });
-  await syncPropertyReservedDates(booking.propertyId);
+
+  try {
+    await upsertBookingAvailability(
+      docRef.id,
+      {
+        propertyId: booking.propertyId,
+        hostId: booking.hostId,
+        clientId: booking.clientId,
+        startDate: booking.startDate,
+        endDate: booking.endDate,
+        status: booking.status || 'pending',
+      },
+      true,
+    );
+  } catch (error) {
+    console.error('Failed to mirror booking availability:', error);
+  }
+
+  try {
+    await syncPropertyReservedDates(booking.propertyId);
+  } catch (error) {
+    console.error('Failed to sync property reserved dates:', error);
+  }
+
   resetBookingsCache();
   return docRef.id;
 }
@@ -129,9 +223,38 @@ export async function updateBookingStatus(bookingId: string, status: BookingStat
   await updateDoc(doc(bookingsCollection, bookingId), { status });
   const booking = bookingSnapshot.data() as Booking | undefined;
   if (booking?.propertyId) {
-    await syncPropertyReservedDates(booking.propertyId);
+    try {
+      await upsertBookingAvailability(bookingId, {
+        propertyId: booking.propertyId,
+        hostId: booking.hostId,
+        clientId: booking.clientId,
+        startDate: booking.startDate,
+        endDate: booking.endDate,
+        status,
+      });
+    } catch (error) {
+      console.error('Failed to update booking availability:', error);
+    }
+
+    try {
+      await syncPropertyReservedDates(booking.propertyId);
+    } catch (error) {
+      console.error('Failed to sync property reserved dates:', error);
+    }
   }
   resetBookingsCache();
+}
+
+export async function getPublicPropertyAvailability(propertyId: string): Promise<BookingAvailability[]> {
+  const cached = propertyAvailabilityCache.get(propertyId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+
+  const snapshot = await getDocs(query(bookingAvailabilityCollection, where('propertyId', '==', propertyId)));
+  const data = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...(docSnap.data() as BookingAvailability) }));
+  propertyAvailabilityCache.set(propertyId, { data, expiresAt: Date.now() + BOOKINGS_CACHE_TTL_MS });
+  return data;
 }
 
 export async function getPropertyBookings(propertyId: string): Promise<Booking[]> {

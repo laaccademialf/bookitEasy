@@ -6,7 +6,7 @@ import { DayPicker, type DateRange } from 'react-day-picker';
 import { uk } from 'date-fns/locale';
 import 'react-day-picker/style.css';
 import { getPropertyById, type Property } from '../../../lib/properties';
-import { createBooking, getClientBookings, getPropertyBookings, type Booking } from '../../../lib/bookings';
+import { createBooking, getClientBookings, getPublicPropertyAvailability, type Booking, type BookingAvailability } from '../../../lib/bookings';
 import { AuthContext } from '../../providers';
 
 type UpsellService = {
@@ -78,6 +78,7 @@ export default function BookingPage() {
   const [property, setProperty] = useState<Property | null>(null);
   const [propertyLoading, setPropertyLoading] = useState(true);
   const [propertyBookings, setPropertyBookings] = useState<Booking[]>([]);
+  const [publicAvailability, setPublicAvailability] = useState<BookingAvailability[]>([]);
   const [bookedDates, setBookedDates] = useState<Date[]>([]);
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
@@ -102,28 +103,39 @@ export default function BookingPage() {
 
   useEffect(() => {
     if (!params.id) {
+      setPublicAvailability([]);
+      return;
+    }
+
+    let isActive = true;
+
+    const loadAvailability = async () => {
+      try {
+        const availability = await getPublicPropertyAvailability(params.id);
+        if (!isActive) return;
+        setPublicAvailability(availability);
+      } catch {
+        if (!isActive) return;
+        setPublicAvailability([]);
+      }
+    };
+
+    loadAvailability();
+
+    return () => {
+      isActive = false;
+    };
+  }, [params.id]);
+
+  useEffect(() => {
+    if (!params.id || !user) {
       setPropertyBookings([]);
       return;
     }
 
     let isActive = true;
 
-    const loadBookings = async () => {
-      try {
-        const allByProperty = await getPropertyBookings(params.id);
-        if (!isActive) return;
-        setPropertyBookings(allByProperty);
-        return;
-      } catch {
-        // Non-host clients may not have permission to read all bookings for property.
-      }
-
-      if (!user) {
-        if (!isActive) return;
-        setPropertyBookings([]);
-        return;
-      }
-
+    const loadMyBookings = async () => {
       try {
         const mine = await getClientBookings(user.uid);
         if (!isActive) return;
@@ -134,7 +146,7 @@ export default function BookingPage() {
       }
     };
 
-    loadBookings();
+    loadMyBookings();
 
     return () => {
       isActive = false;
@@ -142,20 +154,25 @@ export default function BookingPage() {
   }, [params.id, user]);
 
   useEffect(() => {
-    const bookingDates = propertyBookings
+    const availabilityDates = publicAvailability
       .filter((booking) => booking.status !== 'cancelled')
       .flatMap((booking) => expandDates(booking.startDate, booking.endDate));
 
     const reservedDates = (property?.reservedDates || []).map((date) => parseIsoLocal(date));
     const blockedDates = (property?.blockedDates || []).map((date) => parseIsoLocal(date));
 
+    if (availabilityDates.length > 0) {
+      setBookedDates([...availabilityDates, ...blockedDates]);
+      return;
+    }
+
     if (reservedDates.length > 0) {
       setBookedDates([...reservedDates, ...blockedDates]);
       return;
     }
 
-    setBookedDates([...bookingDates, ...blockedDates]);
-  }, [propertyBookings, property]);
+    setBookedDates([...blockedDates]);
+  }, [property, publicAvailability]);
 
   const nights = useMemo(() => {
     const from = dateRange?.from;
