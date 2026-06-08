@@ -2,6 +2,12 @@ import { addDoc, collection, getDocs, query, serverTimestamp, where } from 'fire
 import { firestore } from './firebase';
 
 export type FixedAssetCategory = 'furniture' | 'appliances' | 'additional';
+export type FixedAssetCondition = 'new' | 'used';
+
+export const ASSET_CONDITION_LABELS: Record<FixedAssetCondition, string> = {
+  new: 'Новий',
+  used: 'Б/у',
+};
 
 export const ASSET_CATEGORY_LABELS: Record<FixedAssetCategory, string> = {
   furniture: 'Меблі',
@@ -16,6 +22,8 @@ export interface FixedAsset {
   propertyTitle: string;
   name: string;
   category: FixedAssetCategory;
+  condition: FixedAssetCondition;
+  value: number;
   quantity: number;
   createdAt?: any;
 }

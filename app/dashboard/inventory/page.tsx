@@ -5,19 +5,24 @@ import { AuthContext } from '../../providers';
 import { getHostProperties, type Property } from '../../../lib/properties';
 import {
   ASSET_CATEGORY_LABELS,
+  ASSET_CONDITION_LABELS,
   createFixedAsset,
   getHostFixedAssets,
   type FixedAsset,
   type FixedAssetCategory,
+  type FixedAssetCondition,
 } from '../../../lib/inventory';
 import { X } from 'lucide-react';
 
 const CATEGORIES = Object.entries(ASSET_CATEGORY_LABELS) as [FixedAssetCategory, string][];
+const CONDITIONS = Object.entries(ASSET_CONDITION_LABELS) as [FixedAssetCondition, string][];
 
 const EMPTY_FORM = {
   propertyId: '',
   name: '',
   category: '' as FixedAssetCategory | '',
+  condition: '' as FixedAssetCondition | '',
+  value: 0,
   quantity: 1,
 };
 
@@ -101,6 +106,8 @@ export default function InventoryPage() {
     if (!form.propertyId) { setFormError('Оберіть обʼєкт.'); return; }
     if (!form.name.trim()) { setFormError('Введіть назву ОЗ.'); return; }
     if (!form.category) { setFormError('Оберіть категорію.'); return; }
+    if (!form.condition) { setFormError('Оберіть стан.'); return; }
+    if (form.value < 0) { setFormError('Вартість не може бути від́ємною.'); return; }
     if (form.quantity < 1) { setFormError('Кількість має бути більше 0.'); return; }
 
     setSaving(true);
@@ -113,6 +120,8 @@ export default function InventoryPage() {
         propertyTitle,
         name: form.name.trim(),
         category: form.category as FixedAssetCategory,
+        condition: form.condition as FixedAssetCondition,
+        value: form.value,
         quantity: form.quantity,
       };
       const id = await createFixedAsset(newAsset);
@@ -223,7 +232,7 @@ export default function InventoryPage() {
                         <div key={asset.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
                           <p className="text-sm font-medium text-slate-900">{asset.name}</p>
                           <p className="mt-0.5 text-xs text-slate-500">
-                            {ASSET_CATEGORY_LABELS[asset.category]} • {asset.quantity} шт.
+                            {ASSET_CATEGORY_LABELS[asset.category]} • {ASSET_CONDITION_LABELS[asset.condition]} • {asset.value.toLocaleString('uk-UA')} грн • {asset.quantity} шт.
                           </p>
                         </div>
                       ))}
@@ -283,6 +292,34 @@ export default function InventoryPage() {
                 <option key={value} value={value}>{label}</option>
               ))}
             </select>
+          </div>
+
+          {/* Condition */}
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">Стан</label>
+            <select
+              value={form.condition}
+              onChange={(e) => setForm((f) => ({ ...f, condition: e.target.value as FixedAssetCondition }))}
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500"
+            >
+              <option value="">— Оберіть стан —</option>
+              {CONDITIONS.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Value */}
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">Вартість (грн)</label>
+            <input
+              type="number"
+              min={0}
+              value={form.value}
+              onChange={(e) => setForm((f) => ({ ...f, value: Math.max(0, Number(e.target.value)) }))}
+              placeholder="0"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500"
+            />
           </div>
 
           {/* Name */}
