@@ -45,11 +45,13 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const DAYS_VISIBLE = 14;
 
 type CellDetail = {
+  propertyId: string;
   propertyTitle: string;
-  booking: Booking;
-  guestName: string;
-  guestPhone: string;
-  nights: number;
+  booking?: Booking;
+  guestName?: string;
+  guestPhone?: string;
+  nights?: number;
+  blockedDate?: string;
 };
 
 function toLocalDate(value: string): Date {
@@ -247,23 +249,27 @@ export default function CalendarPage() {
     }
   };
 
-  const handleUnblockDate = async (propertyId: string, date: string) => {
+  const handleUnblockDate = async () => {
+    if (!selectedCell?.blockedDate || !selectedCell?.propertyId) return;
     if (!window.confirm('Розблокувати цю дату?')) return;
 
     try {
-      await removeBlockedDate(propertyId, date);
+      await removeBlockedDate(selectedCell.propertyId, selectedCell.blockedDate);
 
       setProperties((current) =>
         current.map((property) => {
-          if (property.id !== propertyId) return property;
+          if (property.id !== selectedCell.propertyId) return property;
           return {
             ...property,
-            blockedDates: (property.blockedDates || []).filter((d) => d !== date),
+            blockedDates: (property.blockedDates || []).filter(
+              (d) => d !== selectedCell.blockedDate,
+            ),
           };
         }),
       );
 
       setStatus('Дату розблоковано');
+      setSelectedCell(null);
     } catch {
       setStatus('Не вдалося розблокувати дату.');
     } finally {
@@ -623,16 +629,20 @@ export default function CalendarPage() {
               <div className="mt-4 max-h-72 space-y-3 overflow-y-auto pr-1">
                 {properties.flatMap((property) =>
                   property.blockedDates?.map((date) => (
-                    <div key={`${property.id}-${date}`} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
-                      <span><span className="font-semibold text-slate-900">{property.title}</span> - {fmt(date)}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleUnblockDate(property.id!, date)}
-                        className="rounded-full border border-rose-300 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-600 transition hover:bg-rose-100"
-                      >
-                        Видалити
-                      </button>
-                    </div>
+                    <button
+                      key={`${property.id}-${date}`}
+                      type="button"
+                      onClick={() =>
+                        setSelectedCell({
+                          propertyId: property.id!,
+                          propertyTitle: property.title,
+                          blockedDate: date,
+                        })
+                      }
+                      className="w-full text-left rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900 transition hover:border-rose-300 hover:bg-rose-100"
+                    >
+                      <span className="font-semibold text-rose-950">{property.title}</span> - {fmt(date)}
+                    </button>
                   )) ?? [],
                 ).length === 0 ? (
                   <p className="text-slate-500">Ще немає заблокованих дат.</p>
@@ -652,7 +662,9 @@ export default function CalendarPage() {
             aria-modal="true"
           >
             <div className="flex items-center justify-between gap-3">
-              <h3 className="text-lg font-semibold text-slate-900">Деталі бронювання</h3>
+              <h3 className="text-lg font-semibold text-slate-900">
+                {selectedCell?.blockedDate ? 'Заблокована дата' : 'Деталі бронювання'}
+              </h3>
               <button
                 type="button"
                 onClick={() => setSelectedCell(null)}
@@ -666,91 +678,110 @@ export default function CalendarPage() {
             <div className="mt-4 space-y-3 text-sm text-slate-700">
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                 <p className="text-xs text-slate-500">Обʼєкт</p>
-                <p className="font-semibold text-slate-900">{selectedCell.propertyTitle}</p>
+                <p className="font-semibold text-slate-900">{selectedCell?.propertyTitle}</p>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-xs text-slate-500">Гість</p>
-                <p className="font-semibold text-slate-900">{selectedCell.guestName}</p>
-              </div>
-              {selectedCell.booking.status === 'confirmed' && (
+              {selectedCell?.blockedDate ? (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <p className="text-xs text-slate-500">Телефон для звʼязку</p>
-                  <p className="font-semibold text-slate-900">{selectedCell.guestPhone || 'Не вказано'}</p>
+                  <p className="text-xs text-slate-500">Заблокована дата</p>
+                  <p className="font-semibold text-slate-900">{fmt(selectedCell.blockedDate)}</p>
                 </div>
-              )}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <p className="text-xs text-slate-500">Заїзд</p>
-                  <p className="font-semibold text-slate-900">{fmt(selectedCell.booking.startDate)}</p>
-                  <p className="mt-1 text-xs text-emerald-700 font-medium">з {getCheckInTime(selectedCell.booking)}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <p className="text-xs text-slate-500">Виїзд</p>
-                  <p className="font-semibold text-slate-900">{fmt(selectedCell.booking.endDate)}</p>
-                  <p className="mt-1 text-xs text-rose-700 font-medium">до {getCheckOutTime(selectedCell.booking)}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <p className="text-xs text-slate-500">Ночей</p>
-                  <p className="font-semibold text-slate-900">{selectedCell.nights}</p>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <p className="text-xs text-slate-500">Сума</p>
-                  <p className="font-semibold text-slate-900">{selectedCell.booking.totalPrice.toLocaleString('uk-UA')} грн</p>
-                </div>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-xs text-slate-500">Статус</p>
-                <p className={`font-semibold ${
-                  selectedCell.booking.status === 'confirmed' ? 'text-emerald-700' :
-                  selectedCell.booking.status === 'pending' ? 'text-amber-700' :
-                  'text-slate-700'
-                }`}>
-                  {selectedCell.booking.status === 'confirmed' ? 'Підтверджено' :
-                   selectedCell.booking.status === 'pending' ? 'Очікує підтвердження' :
-                   'Скасовано'}
-                </p>
-              </div>
-
-              {selectedCell.booking.selectedServices && selectedCell.booking.selectedServices.length > 0 && (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
-                  <p className="text-xs font-semibold text-emerald-700 uppercase tracking-[0.15em]">Обрані послуги</p>
-                  <div className="mt-2 space-y-1">
-                    {UPSELL_SERVICES.filter((service) => selectedCell.booking.selectedServices?.includes(service.id)).map((service) => (
-                      <div key={service.id} className="flex items-start gap-2 text-xs text-emerald-800">
-                        <span className="mt-0.5 flex-shrink-0 font-bold">✓</span>
-                        <div className="flex-1">
-                          <p className="font-semibold">{service.label}</p>
-                          <p className="text-emerald-700">{service.details}</p>
-                        </div>
-                      </div>
-                    ))}
+              ) : (
+                <>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    <p className="text-xs text-slate-500">Гість</p>
+                    <p className="font-semibold text-slate-900">{selectedCell?.guestName}</p>
                   </div>
-                </div>
+                  {selectedCell?.booking?.status === 'confirmed' && (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <p className="text-xs text-slate-500">Телефон для звʼязку</p>
+                      <p className="font-semibold text-slate-900">{selectedCell?.guestPhone || 'Не вказано'}</p>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <p className="text-xs text-slate-500">Заїзд</p>
+                      <p className="font-semibold text-slate-900">{fmt(selectedCell?.booking?.startDate || '')}</p>
+                      <p className="mt-1 text-xs text-emerald-700 font-medium">з {getCheckInTime(selectedCell?.booking!)}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <p className="text-xs text-slate-500">Виїзд</p>
+                      <p className="font-semibold text-slate-900">{fmt(selectedCell?.booking?.endDate || '')}</p>
+                      <p className="mt-1 text-xs text-rose-700 font-medium">до {getCheckOutTime(selectedCell?.booking!)}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <p className="text-xs text-slate-500">Ночей</p>
+                      <p className="font-semibold text-slate-900">{selectedCell?.nights}</p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <p className="text-xs text-slate-500">Сума</p>
+                      <p className="font-semibold text-slate-900">{selectedCell?.booking?.totalPrice.toLocaleString('uk-UA')} грн</p>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    <p className="text-xs text-slate-500">Статус</p>
+                    <p className={`font-semibold ${
+                      selectedCell?.booking?.status === 'confirmed' ? 'text-emerald-700' :
+                      selectedCell?.booking?.status === 'pending' ? 'text-amber-700' :
+                      'text-slate-700'
+                    }`}>
+                      {selectedCell?.booking?.status === 'confirmed' ? 'Підтверджено' :
+                       selectedCell?.booking?.status === 'pending' ? 'Очікує підтвердження' :
+                       'Скасовано'}
+                    </p>
+                  </div>
+
+                  {selectedCell?.booking?.selectedServices && selectedCell.booking.selectedServices.length > 0 && (
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                      <p className="text-xs font-semibold text-emerald-700 uppercase tracking-[0.15em]">Обрані послуги</p>
+                      <div className="mt-2 space-y-1">
+                            {UPSELL_SERVICES.filter((service) => selectedCell?.booking?.selectedServices?.includes(service.id)).map((service) => (
+                          <div key={service.id} className="flex items-start gap-2 text-xs text-emerald-800">
+                            <span className="mt-0.5 flex-shrink-0 font-bold">✓</span>
+                            <div className="flex-1">
+                              <p className="font-semibold">{service.label}</p>
+                              <p className="text-emerald-700">{service.details}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedCell?.booking?.status !== 'cancelled' && (
+                    <div className="flex gap-2 pt-1">
+                      {selectedCell?.booking?.status === 'pending' && (
+                        <button
+                          type="button"
+                          disabled={!selectedBookingId || updatingBookingId === selectedBookingId}
+                          onClick={() => selectedBookingId && handleUpdateStatus(selectedBookingId, 'confirmed')}
+                          className="flex-1 rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {updatingBookingId === selectedBookingId ? 'Зберігаєм...' : '✓ Підтвердити'}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        disabled={!selectedBookingId || updatingBookingId === selectedBookingId}
+                        onClick={() => selectedBookingId && handleUpdateStatus(selectedBookingId, 'cancelled')}
+                        className="flex-1 rounded-full border border-rose-300 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        ✕ Скасувати
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
 
-              {selectedCell.booking.status !== 'cancelled' && (
-                <div className="flex gap-2 pt-1">
-                  {selectedCell.booking.status === 'pending' && (
-                    <button
-                      type="button"
-                      disabled={!selectedBookingId || updatingBookingId === selectedBookingId}
-                      onClick={() => selectedBookingId && handleUpdateStatus(selectedBookingId, 'confirmed')}
-                      className="flex-1 rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {updatingBookingId === selectedBookingId ? 'Зберігаєм...' : '✓ Підтвердити'}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    disabled={!selectedBookingId || updatingBookingId === selectedBookingId}
-                    onClick={() => selectedBookingId && handleUpdateStatus(selectedBookingId, 'cancelled')}
-                    className="flex-1 rounded-full border border-rose-300 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    ✕ Скасувати
-                  </button>
-                </div>
+              {selectedCell?.blockedDate && (
+                <button
+                  type="button"
+                  onClick={handleUnblockDate}
+                  className="w-full rounded-full border border-rose-300 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
+                >
+                  ✕ Розблокувати дату
+                </button>
               )}
             </div>
           </div>
