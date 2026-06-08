@@ -122,11 +122,15 @@ export async function addBlockedDate(propertyId: string, date: string) {
 }
 
 export async function removeBlockedDate(propertyId: string, date: string) {
+  console.log('removeBlockedDate called with:', { propertyId, date });
   const existing = await getPropertyById(propertyId);
+  console.log('Existing property:', existing);
   await updateDoc(doc(propertiesCollection, propertyId), {
     blockedDates: arrayRemove(date),
     updatedAt: serverTimestamp(),
   });
+  console.log('Updated Firestore document');
   resetPublicPropertiesCache();
   resetHostPropertiesCache(existing?.hostId);
+  console.log('Cache reset');
 }

@@ -250,28 +250,34 @@ export default function CalendarPage() {
   };
 
   const handleUnblockDate = async () => {
-    if (!selectedCell?.blockedDate || !selectedCell?.propertyId) return;
+    if (!selectedCell?.blockedDate || !selectedCell?.propertyId) {
+      console.log('Missing data:', { blockedDate: selectedCell?.blockedDate, propertyId: selectedCell?.propertyId });
+      return;
+    }
+
+    const propertyIdToUnblock = selectedCell.propertyId;
+    const dateToUnblock = selectedCell.blockedDate;
+
+    console.log('Unblocking date:', { propertyIdToUnblock, dateToUnblock });
+
     if (!window.confirm('Розблокувати цю дату?')) return;
 
     try {
-      await removeBlockedDate(selectedCell.propertyId, selectedCell.blockedDate);
+      await removeBlockedDate(propertyIdToUnblock, dateToUnblock);
+      console.log('Date unblocked successfully');
 
-      setProperties((current) =>
-        current.map((property) => {
-          if (property.id !== selectedCell.propertyId) return property;
-          return {
-            ...property,
-            blockedDates: (property.blockedDates || []).filter(
-              (d) => d !== selectedCell.blockedDate,
-            ),
-          };
-        }),
-      );
+      // Reload all properties from server to ensure consistency
+      if (profile?.uid) {
+        const updatedProperties = await getHostProperties(profile.uid);
+        setProperties(updatedProperties);
+        console.log('Properties reloaded:', updatedProperties);
+      }
 
       setStatus('Дату розблоковано');
       setSelectedCell(null);
-    } catch {
-      setStatus('Не вдалося розблокувати дату.');
+    } catch (error) {
+      console.error('Error unblocking date:', error);
+      setStatus('Не вдалося розблокувати дату: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setTimeout(() => setStatus(''), 2500);
     }
