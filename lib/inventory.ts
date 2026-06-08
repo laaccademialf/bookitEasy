@@ -1,4 +1,4 @@
-import { addDoc, collection, getDocs, query, serverTimestamp, where } from 'firebase/firestore';
+import { collection, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { firestore } from './firebase';
 
 export type FixedAssetCategory = 'furniture' | 'appliances' | 'additional';
@@ -31,13 +31,34 @@ export interface FixedAsset {
 
 const assetsCollection = collection(firestore, 'fixedAssets');
 
+function createAssetId() {
+  return doc(assetsCollection).id;
+}
+
 export async function getHostFixedAssets(hostId: string): Promise<FixedAsset[]> {
-  const q = query(assetsCollection, where('hostId', '==', hostId));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...(docSnap.data() as Omit<FixedAsset, 'id'>) }));
+  const userDoc = await getDoc(doc(firestore, 'users', hostId));
+  if (!userDoc.exists()) {
+    return [];
+  }
+
+  const data = userDoc.data() as { fixedAssets?: FixedAsset[] };
+  return (data.fixedAssets || []).sort((a, b) => (a.addedAt || '').localeCompare(b.addedAt || ''));
 }
 
 export async function createFixedAsset(asset: Omit<FixedAsset, 'id' | 'createdAt'>): Promise<string> {
-  const docRef = await addDoc(assetsCollection, { ...asset, createdAt: serverTimestamp() });
-  return docRef.id;
+  const userRef = doc(firestore, 'users', asset.hostId);
+  const userDoc = await getDoc(userRef);
+  const currentData = userDoc.exists() ? (userDoc.data() as { fixedAssets?: FixedAsset[] }) : {};
+  const nextId = createAssetId();
+  const nextAsset: FixedAsset = {
+    ...asset,
+    id: nextId,
+    createdAt: new Date().toISOString(),
+  };
+
+  await updateDoc(userRef, {
+    fixedAssets: [...(currentData.fixedAssets || []), nextAsset],
+  });
+
+  return nextId;
 }

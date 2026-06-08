@@ -138,7 +138,7 @@ export default function InventoryPage() {
       setStatus('Основний засіб додано.');
       setTimeout(() => setStatus(''), 2500);
     } catch {
-      setFormError('Не вдалося зберегти. Перевірте права доступу Firestore.');
+      setFormError('Не вдалося зберегти основний засіб. Спробуйте ще раз.');
     } finally {
       setSaving(false);
     }
