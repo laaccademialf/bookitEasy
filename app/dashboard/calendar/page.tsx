@@ -267,23 +267,30 @@ export default function CalendarPage() {
     if (!window.confirm('Розблокувати цю дату?')) return;
 
     try {
+      // Remove the blocked date from Firestore
       await removeBlockedDate(propertyIdToUnblock, dateToUnblock);
-      console.log('Date unblocked successfully');
+      console.log('Date unblocked successfully from Firestore');
+
+      // Wait a bit for Firestore to process
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // Reload all properties from server to ensure consistency
       if (profile?.uid) {
+        console.log('Reloading properties for user:', profile.uid);
         const updatedProperties = await getHostProperties(profile.uid);
+        console.log('Properties reloaded, count:', updatedProperties.length);
         setProperties(updatedProperties);
-        console.log('Properties reloaded:', updatedProperties);
       }
 
       setStatus('Дату розблоковано');
       setSelectedCell(null);
     } catch (error) {
       console.error('Error unblocking date:', error);
-      setStatus('Не вдалося розблокувати дату: ' + (error instanceof Error ? error.message : String(error)));
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('Error details:', errorMessage);
+      setStatus('Не вдалося розблокувати дату: ' + errorMessage);
     } finally {
-      setTimeout(() => setStatus(''), 2500);
+      setTimeout(() => setStatus(''), 3000);
     }
   };
 
