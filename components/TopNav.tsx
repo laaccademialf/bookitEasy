@@ -61,10 +61,12 @@ export function TopNav() {
   );
 
   const logoHref = useMemo(() => {
+    if (profile?.role === 'admin') return '/admin';
+    if (profile?.role === 'host') return '/dashboard';
     if (pathname.startsWith('/dashboard')) return '/dashboard';
     if (pathname.startsWith('/admin')) return '/admin';
     return '/';
-  }, [pathname]);
+  }, [pathname, profile?.role]);
 
   const handleSignOut = async () => {
     await signOutUser();
