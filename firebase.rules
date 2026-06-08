@@ -57,5 +57,20 @@ service cloud.firestore {
         isAdmin()
       );
     }
+
+    match /fixedAssets/{assetId} {
+      allow read: if isSignedIn() && (
+        resource.data.hostId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() && (
+        request.resource.data.hostId == request.auth.uid ||
+        isAdmin()
+      );
+      allow update, delete: if isSignedIn() && (
+        resource.data.hostId == request.auth.uid ||
+        isAdmin()
+      );
+    }
   }
 }
