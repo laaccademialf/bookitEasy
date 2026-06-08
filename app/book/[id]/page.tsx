@@ -21,14 +21,14 @@ const UPSELL_SERVICES: UpsellService[] = [
   {
     id: 'early-check-in',
     label: 'Ранній заїзд',
-    details: '1000 грн',
+    details: '1000 грн (з 09:00)',
     price: 1000,
     chargeType: 'fixed',
   },
   {
     id: 'late-check-out',
     label: 'Пізній виїзд',
-    details: '800 грн',
+    details: '800 грн (до 15:00)',
     price: 800,
     chargeType: 'fixed',
   },
