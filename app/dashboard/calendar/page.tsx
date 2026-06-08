@@ -9,6 +9,7 @@ import { fetchUsers, type UserProfile } from '../../../lib/auth';
 import { PageBanner } from '../../../components/PageBanner';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const DAYS_VISIBLE = 14;
 
 type CellDetail = {
   propertyTitle: string;
@@ -52,6 +53,11 @@ function monthStartFromValue(monthValue: string): Date {
   return new Date(year, month - 1, 1);
 }
 
+function monthLabel(monthValue: string): string {
+  const date = monthStartFromValue(monthValue);
+  return new Intl.DateTimeFormat('uk-UA', { month: 'long', year: 'numeric' }).format(date);
+}
+
 function daysBetween(start: Date, end: Date): number {
   return Math.floor((startOfDay(end).getTime() - startOfDay(start).getTime()) / DAY_MS);
 }
@@ -75,6 +81,7 @@ export default function CalendarPage() {
   const [blockDate, setBlockDate] = useState('');
   const [status, setStatus] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(() => toMonthValue(new Date()));
+  const [dayOffset, setDayOffset] = useState(0);
   const [selectedCell, setSelectedCell] = useState<CellDetail | null>(null);
   const [updatingBookingId, setUpdatingBookingId] = useState<string | null>(null);
 
@@ -110,11 +117,29 @@ export default function CalendarPage() {
     load();
   }, [profile]);
 
+  const monthStart = useMemo(() => monthStartFromValue(selectedMonth), [selectedMonth]);
+  const daysInMonth = useMemo(
+    () => new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0).getDate(),
+    [monthStart],
+  );
+  const maxDayOffset = useMemo(() => Math.max(0, daysInMonth - DAYS_VISIBLE), [daysInMonth]);
+
   const rangeDays = useMemo(() => {
-    const start = monthStartFromValue(selectedMonth);
-    const daysInMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
-    return Array.from({ length: daysInMonth }, (_, index) => addDays(start, index));
-  }, [selectedMonth]);
+    const safeOffset = Math.min(dayOffset, maxDayOffset);
+    const start = addDays(monthStart, safeOffset);
+    const visibleDays = Math.min(DAYS_VISIBLE, daysInMonth - safeOffset);
+    return Array.from({ length: visibleDays }, (_, index) => addDays(start, index));
+  }, [monthStart, dayOffset, maxDayOffset, daysInMonth]);
+
+  const monthOptions = useMemo(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+    return Array.from({ length: 18 }, (_, index) => {
+      const date = new Date(start.getFullYear(), start.getMonth() + index, 1);
+      const value = toMonthValue(date);
+      return { value, label: monthLabel(value) };
+    });
+  }, []);
 
   const blockedCount = useMemo(
     () => properties.reduce((sum, property) => sum + (property.blockedDates?.length || 0), 0),
@@ -239,18 +264,47 @@ export default function CalendarPage() {
         actions={
           <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
             <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Місяць</label>
-            <input
-              type="month"
+            <select
               value={selectedMonth}
-              onChange={(event) => setSelectedMonth(event.target.value)}
+              onChange={(event) => {
+                setSelectedMonth(event.target.value);
+                setDayOffset(0);
+              }}
               className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 outline-none transition focus:border-sky-400"
-            />
+            >
+              {monthOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
             <button
               type="button"
-              onClick={() => setSelectedMonth(toMonthValue(new Date()))}
+              onClick={() => {
+                setSelectedMonth(toMonthValue(new Date()));
+                const today = new Date();
+                const offset = Math.max(0, today.getDate() - 1);
+                setDayOffset(Math.min(offset, maxDayOffset));
+              }}
               className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-sky-400"
             >
               Поточний місяць
+            </button>
+            <button
+              type="button"
+              onClick={() => setDayOffset((current) => Math.max(0, current - 7))}
+              disabled={dayOffset === 0}
+              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-sky-400 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              -7 днів
+            </button>
+            <button
+              type="button"
+              onClick={() => setDayOffset((current) => Math.min(maxDayOffset, current + 7))}
+              disabled={dayOffset >= maxDayOffset}
+              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-sky-400 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              +7 днів
             </button>
           </div>
         }
