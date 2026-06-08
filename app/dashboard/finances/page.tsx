@@ -3,7 +3,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { AuthContext } from '../../providers';
 import { Booking, getHostBookings } from '../../../lib/bookings';
-import { createExpense, deleteExpense, getHostExpenses, updateExpense, Expense } from '../../../lib/expenses';
+import { createExpense, getHostExpenses, Expense } from '../../../lib/expenses';
 import { getHostProperties, Property } from '../../../lib/properties';
 import { PageBanner } from '../../../components/PageBanner';
 
@@ -39,7 +39,6 @@ export default function FinancesPage() {
     description: '',
     propertyId: '',
   });
-  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [status, setStatus] = useState('');
 
   useEffect(() => {
@@ -174,71 +173,11 @@ export default function FinancesPage() {
       payload.propertyId = '';
     }
 
-    if (editingExpenseId) {
-      await updateExpense(editingExpenseId, payload);
-      setExpenses((current) =>
-        current.map((expense) =>
-          expense.id === editingExpenseId
-            ? {
-                ...expense,
-                ...payload,
-                propertyId: payload.propertyId || undefined,
-              }
-            : expense,
-        ),
-      );
-      setStatus('Витрату оновлено');
-      setEditingExpenseId(null);
-    } else {
-      const createdId = await createExpense(payload);
-      setExpenses((current) => [...current, { id: createdId, ...payload }]);
-      setStatus('Витрату додано');
-    }
-
+    const createdId = await createExpense(payload);
+    setExpenses((current) => [...current, { id: createdId, ...payload }]);
+    setStatus('Витрату додано');
     setExpenseForm({ category: 'utility', amount: 0, date: '', description: '', propertyId: '' });
     setTimeout(() => setStatus(''), 2000);
-  };
-
-  const handleStartEditExpense = (expense: Expense) => {
-    setEditingExpenseId(expense.id || null);
-    setExpenseForm({
-      category: expense.category,
-      amount: Number(expense.amount || 0),
-      date: expense.date || '',
-      description: expense.description || '',
-      propertyId: (expense as any).propertyId || '',
-    });
-  };
-
-  const handleCancelEditExpense = () => {
-    setEditingExpenseId(null);
-    setExpenseForm({ category: 'utility', amount: 0, date: '', description: '', propertyId: '' });
-  };
-
-  const handleDeleteExpense = async (expense: Expense) => {
-    if (!expense.id) {
-      setStatus('Неможливо видалити цю витрату.');
-      setTimeout(() => setStatus(''), 2000);
-      return;
-    }
-
-    const confirmed = window.confirm('Видалити цю витрату?');
-    if (!confirmed) return;
-
-    try {
-      await deleteExpense(expense.id);
-      setExpenses((current) => current.filter((item) => item.id !== expense.id));
-
-      if (editingExpenseId === expense.id) {
-        handleCancelEditExpense();
-      }
-
-      setStatus('Витрату видалено');
-    } catch {
-      setStatus('Не вдалося видалити витрату. Перевірте права доступу.');
-    }
-
-    setTimeout(() => setStatus(''), 2500);
   };
 
   if (loading) {
@@ -446,23 +385,7 @@ export default function FinancesPage() {
                             ` · ${properties.find((p) => p.id === (expense as any).propertyId)?.title ?? ''}`}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-white">-{Number(expense.amount).toLocaleString('uk-UA')} грн</p>
-                        <button
-                          type="button"
-                          onClick={() => handleStartEditExpense(expense)}
-                          className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-semibold text-slate-200 transition hover:border-sky-400"
-                        >
-                          Редагувати
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteExpense(expense)}
-                          className="rounded-full border border-rose-800/60 bg-rose-900/30 px-3 py-1 text-xs font-semibold text-rose-200 transition hover:border-rose-500"
-                        >
-                          Видалити
-                        </button>
-                      </div>
+                      <p className="text-white">-{Number(expense.amount).toLocaleString('uk-UA')} грн</p>
                     </div>
                   </div>
                 ))
@@ -473,11 +396,6 @@ export default function FinancesPage() {
           <section className="rounded-2xl border border-white/10 bg-slate-900/80 p-5 shadow-xl sm:rounded-[2rem] sm:p-6">
             <h2 className="text-lg font-semibold text-white sm:text-2xl">Додати витрату</h2>
             <form onSubmit={handleExpenseSubmit} className="mt-4 space-y-4 sm:mt-6">
-              {editingExpenseId ? (
-                <div className="rounded-2xl border border-sky-500/40 bg-sky-500/10 px-4 py-3 text-sm text-sky-200">
-                  Режим редагування витрати
-                </div>
-              ) : null}
               <div>
                 <label className="block text-sm font-medium text-slate-300">Категорія</label>
                 <select
@@ -534,20 +452,9 @@ export default function FinancesPage() {
                 />
               </div>
               {status && <p className="text-sm text-sky-300">{status}</p>}
-              <div className="flex gap-2">
-                <button className="w-full rounded-full bg-sky-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-sky-400">
-                  {editingExpenseId ? 'Зберегти зміни' : 'Додати витрату'}
-                </button>
-                {editingExpenseId ? (
-                  <button
-                    type="button"
-                    onClick={handleCancelEditExpense}
-                    className="rounded-full border border-slate-700 bg-slate-950 px-5 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500"
-                  >
-                    Скасувати
-                  </button>
-                ) : null}
-              </div>
+              <button className="w-full rounded-full bg-sky-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-sky-400">
+                Додати витрату
+              </button>
             </form>
           </section>
         </div>
