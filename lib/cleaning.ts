@@ -78,6 +78,15 @@ export async function getHostCleaningTickets(hostId: string): Promise<CleaningTi
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+export async function getDerivedCleaningTicketsForHost(hostId: string): Promise<CleaningTicket[]> {
+  const bookings = await getHostBookings(hostId, true);
+
+  return bookings
+    .filter((booking) => booking.status === 'confirmed')
+    .flatMap((booking) => buildTicketsForBooking(booking))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 export async function syncCleaningTicketsForHost(hostId: string): Promise<void> {
   const [bookings, existingTickets] = await Promise.all([
     getHostBookings(hostId, true),

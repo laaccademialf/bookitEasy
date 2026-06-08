@@ -4,6 +4,7 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 import { AuthContext } from '../../providers';
 import { getHostProperties, type Property } from '../../../lib/properties';
 import {
+  getDerivedCleaningTicketsForHost,
   getHostCleaningTickets,
   syncCleaningTicketsForHost,
   updateCleaningTicketStatus,
@@ -29,6 +30,7 @@ export default function CleaningPage() {
   const [status, setStatus] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [fallbackMode, setFallbackMode] = useState(false);
 
   const propertyTitleMap = useMemo(
     () => new Map(properties.map((property) => [property.id, property.title])),
@@ -36,12 +38,18 @@ export default function CleaningPage() {
   );
 
   const loadData = async (hostId: string) => {
-    const [propsData, ticketsData] = await Promise.all([
-      getHostProperties(hostId),
-      getHostCleaningTickets(hostId),
-    ]);
+    const propsData = await getHostProperties(hostId);
     setProperties(propsData);
-    setTickets(ticketsData);
+
+    try {
+      const ticketsData = await getHostCleaningTickets(hostId);
+      setTickets(ticketsData);
+      setFallbackMode(false);
+    } catch {
+      const derivedTickets = await getDerivedCleaningTicketsForHost(hostId);
+      setTickets(derivedTickets);
+      setFallbackMode(true);
+    }
   };
 
   useEffect(() => {
@@ -51,16 +59,25 @@ export default function CleaningPage() {
       setSyncing(true);
       try {
         await syncCleaningTicketsForHost(profile.uid);
-        await loadData(profile.uid);
       } catch {
-        setStatus('Не вдалося завантажити задачі прибирання.');
+        setFallbackMode(true);
       } finally {
+        await loadData(profile.uid);
+        if (fallbackMode) {
+          setStatus('Працюємо в спрощеному режимі: задачі формуються з підтверджених бронювань.');
+        }
         setSyncing(false);
       }
     };
 
     load();
   }, [profile]);
+
+  useEffect(() => {
+    if (!fallbackMode) return;
+    const timer = setTimeout(() => setStatus(''), 3500);
+    return () => clearTimeout(timer);
+  }, [fallbackMode]);
 
   const openTickets = tickets.filter((ticket) => ticket.status === 'open');
   const doneTickets = tickets.filter((ticket) => ticket.status === 'done');
@@ -75,16 +92,24 @@ export default function CleaningPage() {
       await syncCleaningTicketsForHost(profile.uid);
       await loadData(profile.uid);
       setStatus('Тікети синхронізовано з календарем та бронюваннями.');
-    } catch (error: any) {
-      const message = error?.message ? String(error.message) : 'Не вдалося синхронізувати тікети. Спробуйте ще раз.';
-      setStatus(message);
-    } finally {
-      setSyncing(false);
-      setTimeout(() => setStatus(''), 2500);
+      } catch {
+      const derivedTickets = await getDerivedCleaningTicketsForHost(profile.uid);
+      setTickets(derivedTickets);
+      setFallbackMode(true);
+      setStatus('Синхронізація Firestore недоступна. Показано задачі з підтверджених бронювань.');
+      } finally {
+        setSyncing(false);
+      setTimeout(() => setStatus(''), 3000);
     }
   };
 
   const handleToggleTicket = async (ticket: CleaningTicket, statusNext: CleaningTicket['status']) => {
+    if (fallbackMode) {
+      setStatus('У спрощеному режимі зміна статусу недоступна. Оновіть правила Firestore, щоб керувати тікетами.');
+      setTimeout(() => setStatus(''), 3000);
+      return;
+    }
+
     setUpdatingId(ticket.id);
     try {
       await updateCleaningTicketStatus(ticket.id, statusNext);
@@ -152,7 +177,7 @@ export default function CleaningPage() {
                     <p className="mt-1 text-sm text-slate-600">{typeLabel[ticket.type]} • {formatDate(ticket.date)}</p>
                     <button
                       type="button"
-                      disabled={updatingId === ticket.id}
+                      disabled={updatingId === ticket.id || fallbackMode}
                       onClick={() => handleToggleTicket(ticket, 'done')}
                       className="mt-3 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
                     >
@@ -179,7 +204,7 @@ export default function CleaningPage() {
                     <p className="mt-1 text-sm text-slate-600">{typeLabel[ticket.type]} • {formatDate(ticket.date)}</p>
                     <button
                       type="button"
-                      disabled={updatingId === ticket.id}
+                      disabled={updatingId === ticket.id || fallbackMode}
                       onClick={() => handleToggleTicket(ticket, 'open')}
                       className="mt-3 rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
                     >
