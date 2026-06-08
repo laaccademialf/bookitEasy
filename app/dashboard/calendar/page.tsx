@@ -73,21 +73,27 @@ export default function CalendarPage() {
       if (!profile?.uid) return;
 
       try {
-        const [propertiesData, bookingsData, users] = await Promise.all([
+        const [propertiesData, bookingsData] = await Promise.all([
           getHostProperties(profile.uid),
           getHostBookings(profile.uid),
-          fetchUsers(),
         ]);
 
         setProperties(propertiesData);
         setBookings(bookingsData);
-        setUsersMap(new Map(users.map((user) => [user.uid, user])));
 
         if (propertiesData.length > 0) {
           setSelectedProperty((current) => current || propertiesData[0].id || '');
         }
       } catch {
         setStatus('Не вдалося завантажити календар. Оновіть сторінку.');
+      }
+
+      // fetchUsers потребує прав адміна — намагаємося тихо, без блокування основного завантаження
+      try {
+        const users = await fetchUsers();
+        setUsersMap(new Map(users.map((user) => [user.uid, user])));
+      } catch {
+        // non-admin hosts don't have permission — proceed without user names
       }
     };
 
@@ -198,7 +204,7 @@ export default function CalendarPage() {
     setSelectedCell({
       propertyTitle,
       booking,
-      guestName: guest?.name || guest?.email || booking.clientId,
+      guestName: guest?.name || guest?.email || `Гість #${booking.clientId.slice(0, 6)}`,
       nights,
     });
   };
@@ -419,7 +425,7 @@ export default function CalendarPage() {
                         </span>
                       </div>
                       <p className="mt-1 text-[11px] opacity-80">
-                        {guest?.name || guest?.email || booking.clientId}
+                        {guest?.name || guest?.email || `Гість #${booking.clientId.slice(0, 6)}`}
                       </p>
                       <p className="mt-0.5 text-[11px] font-medium">
                         {booking.startDate} → {booking.endDate}
