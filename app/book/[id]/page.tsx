@@ -220,6 +220,8 @@ export default function BookingPage() {
         endDate,
         totalPrice: totalToPay,
         status: 'pending',
+        earlyCheckIn: selectedServices.includes('early-check-in'),
+        lateCheckOut: selectedServices.includes('late-check-out'),
       };
 
       await createBooking(bookingPayload);

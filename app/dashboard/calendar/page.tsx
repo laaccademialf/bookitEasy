@@ -4,7 +4,7 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { AuthContext } from '../../providers';
 import { addBlockedDate, getHostProperties, type Property } from '../../../lib/properties';
-import { getHostBookings, updateBookingStatus, type Booking } from '../../../lib/bookings';
+import { getHostBookings, updateBookingStatus, getCheckInTime, getCheckOutTime, type Booking } from '../../../lib/bookings';
 import { syncCleaningTicketsForHost } from '../../../lib/cleaning';
 import { fetchUsers, type UserProfile } from '../../../lib/auth';
 import { PageBanner } from '../../../components/PageBanner';
@@ -489,7 +489,7 @@ export default function CalendarPage() {
                         {guest?.name || guest?.email || `Гість #${booking.clientId.slice(0, 6)}`}
                       </p>
                       <p className="mt-0.5 text-[11px] font-medium">
-                        {booking.startDate} → {booking.endDate}
+                        {booking.startDate} ({getCheckInTime(booking)}) → {booking.endDate} ({getCheckOutTime(booking)})
                       </p>
                       <p className="mt-0.5 text-[11px] font-semibold">
                         {booking.totalPrice.toLocaleString('uk-UA')} грн
@@ -589,10 +589,12 @@ export default function CalendarPage() {
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                   <p className="text-xs text-slate-500">Заїзд</p>
                   <p className="font-semibold text-slate-900">{selectedCell.booking.startDate}</p>
+                  <p className="mt-1 text-xs text-emerald-700 font-medium">з {getCheckInTime(selectedCell.booking)}</p>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                   <p className="text-xs text-slate-500">Виїзд</p>
                   <p className="font-semibold text-slate-900">{selectedCell.booking.endDate}</p>
+                  <p className="mt-1 text-xs text-rose-700 font-medium">до {getCheckOutTime(selectedCell.booking)}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">

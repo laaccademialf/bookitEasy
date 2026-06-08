@@ -12,7 +12,17 @@ export interface Booking {
   endDate: string;
   totalPrice: number;
   status: BookingStatus;
+  earlyCheckIn?: boolean;
+  lateCheckOut?: boolean;
   createdAt?: any;
+}
+
+export function getCheckInTime(booking?: Booking): string {
+  return booking?.earlyCheckIn ? '09:00' : '12:00';
+}
+
+export function getCheckOutTime(booking?: Booking): string {
+  return booking?.lateCheckOut ? '15:00' : '12:00';
 }
 
 const bookingsCollection = collection(firestore, 'bookings');
