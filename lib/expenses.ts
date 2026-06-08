@@ -1,4 +1,4 @@
-import { addDoc, collection, getDocs, query, serverTimestamp, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { firestore } from './firebase';
 
 export type ExpenseCategory = 'utility' | 'cleaning' | 'repair' | 'other';
@@ -12,6 +12,7 @@ export interface Expense {
   date: string;
   description: string;
   createdAt?: any;
+  updatedAt?: any;
 }
 
 const expensesCollection = collection(firestore, 'expenses');
@@ -31,6 +32,17 @@ export async function createExpense(expense: Omit<Expense, 'id' | 'createdAt'>) 
   });
   resetExpensesCache();
   return docRef.id;
+}
+
+export async function updateExpense(
+  expenseId: string,
+  expense: Partial<Omit<Expense, 'id' | 'createdAt' | 'updatedAt'>>,
+) {
+  await updateDoc(doc(expensesCollection, expenseId), {
+    ...expense,
+    updatedAt: serverTimestamp(),
+  });
+  resetExpensesCache();
 }
 
 export async function getHostExpenses(hostId: string): Promise<Expense[]> {

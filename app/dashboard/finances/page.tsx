@@ -3,7 +3,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { AuthContext } from '../../providers';
 import { Booking, getHostBookings } from '../../../lib/bookings';
-import { createExpense, getHostExpenses, Expense } from '../../../lib/expenses';
+import { createExpense, getHostExpenses, updateExpense, Expense } from '../../../lib/expenses';
 import { getHostProperties, Property } from '../../../lib/properties';
 import { PageBanner } from '../../../components/PageBanner';
 
@@ -39,6 +39,7 @@ export default function FinancesPage() {
     description: '',
     propertyId: '',
   });
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [status, setStatus] = useState('');
 
   useEffect(() => {
@@ -160,19 +161,58 @@ export default function FinancesPage() {
   const handleExpenseSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!profile?.uid) return;
-    const newExpense: any = {
+    const payload: any = {
       hostId: profile.uid,
       category: expenseForm.category as Expense['category'],
       amount: Number(expenseForm.amount),
       date: expenseForm.date,
       description: expenseForm.description,
     };
-    if (expenseForm.propertyId) newExpense.propertyId = expenseForm.propertyId;
-    await createExpense(newExpense);
-    setExpenses((current) => [...current, newExpense]);
-    setStatus('Витрату додано');
+    if (expenseForm.propertyId) {
+      payload.propertyId = expenseForm.propertyId;
+    } else {
+      payload.propertyId = '';
+    }
+
+    if (editingExpenseId) {
+      await updateExpense(editingExpenseId, payload);
+      setExpenses((current) =>
+        current.map((expense) =>
+          expense.id === editingExpenseId
+            ? {
+                ...expense,
+                ...payload,
+                propertyId: payload.propertyId || undefined,
+              }
+            : expense,
+        ),
+      );
+      setStatus('Витрату оновлено');
+      setEditingExpenseId(null);
+    } else {
+      const createdId = await createExpense(payload);
+      setExpenses((current) => [...current, { id: createdId, ...payload }]);
+      setStatus('Витрату додано');
+    }
+
     setExpenseForm({ category: 'utility', amount: 0, date: '', description: '', propertyId: '' });
     setTimeout(() => setStatus(''), 2000);
+  };
+
+  const handleStartEditExpense = (expense: Expense) => {
+    setEditingExpenseId(expense.id || null);
+    setExpenseForm({
+      category: expense.category,
+      amount: Number(expense.amount || 0),
+      date: expense.date || '',
+      description: expense.description || '',
+      propertyId: (expense as any).propertyId || '',
+    });
+  };
+
+  const handleCancelEditExpense = () => {
+    setEditingExpenseId(null);
+    setExpenseForm({ category: 'utility', amount: 0, date: '', description: '', propertyId: '' });
   };
 
   if (loading) {
@@ -380,7 +420,16 @@ export default function FinancesPage() {
                             ` · ${properties.find((p) => p.id === (expense as any).propertyId)?.title ?? ''}`}
                         </p>
                       </div>
-                      <p className="text-white">-{Number(expense.amount).toLocaleString('uk-UA')} грн</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-white">-{Number(expense.amount).toLocaleString('uk-UA')} грн</p>
+                        <button
+                          type="button"
+                          onClick={() => handleStartEditExpense(expense)}
+                          className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-semibold text-slate-200 transition hover:border-sky-400"
+                        >
+                          Редагувати
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))
@@ -391,6 +440,11 @@ export default function FinancesPage() {
           <section className="rounded-2xl border border-white/10 bg-slate-900/80 p-5 shadow-xl sm:rounded-[2rem] sm:p-6">
             <h2 className="text-lg font-semibold text-white sm:text-2xl">Додати витрату</h2>
             <form onSubmit={handleExpenseSubmit} className="mt-4 space-y-4 sm:mt-6">
+              {editingExpenseId ? (
+                <div className="rounded-2xl border border-sky-500/40 bg-sky-500/10 px-4 py-3 text-sm text-sky-200">
+                  Режим редагування витрати
+                </div>
+              ) : null}
               <div>
                 <label className="block text-sm font-medium text-slate-300">Категорія</label>
                 <select
@@ -447,9 +501,20 @@ export default function FinancesPage() {
                 />
               </div>
               {status && <p className="text-sm text-sky-300">{status}</p>}
-              <button className="w-full rounded-full bg-sky-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-sky-400">
-                Додати витрату
-              </button>
+              <div className="flex gap-2">
+                <button className="w-full rounded-full bg-sky-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-sky-400">
+                  {editingExpenseId ? 'Зберегти зміни' : 'Додати витрату'}
+                </button>
+                {editingExpenseId ? (
+                  <button
+                    type="button"
+                    onClick={handleCancelEditExpense}
+                    className="rounded-full border border-slate-700 bg-slate-950 px-5 py-3 text-sm font-semibold text-slate-200 transition hover:border-slate-500"
+                  >
+                    Скасувати
+                  </button>
+                ) : null}
+              </div>
             </form>
           </section>
         </div>
