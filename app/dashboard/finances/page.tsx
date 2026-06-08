@@ -77,8 +77,8 @@ export default function FinancesPage() {
 
   const filteredBookings = useMemo(
     () =>
-      (selectedProperty === 'all' ? bookings : bookings.filter((b) => b.propertyId === selectedProperty)).filter((b) =>
-        inPeriod(b.endDate),
+      (selectedProperty === 'all' ? bookings : bookings.filter((b) => b.propertyId === selectedProperty)).filter(
+        (b) => b.status === 'confirmed' && inPeriod(b.endDate),
       ),
     [bookings, selectedProperty, periodStart],
   );
@@ -139,6 +139,7 @@ export default function FinancesPage() {
       map.set(p.id, { propertyId: p.id, title: p.title, revenue: 0, expenses: 0, profit: 0, bookingsCount: 0 });
     });
     bookings.forEach((b) => {
+      if (b.status !== 'confirmed') return;
       const stat = map.get(b.propertyId);
       if (!stat) return;
       stat.revenue += Number((b as any).totalPrice || 0);
@@ -226,7 +227,7 @@ export default function FinancesPage() {
           <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 shadow-xl sm:rounded-[2rem] sm:p-6">
             <p className="text-xs uppercase tracking-[0.24em] text-slate-400 sm:text-sm">Доходи</p>
             <p className="mt-2 text-xl font-semibold text-white sm:mt-4 sm:text-4xl">{totalRevenue.toLocaleString('uk-UA')} грн</p>
-            <p className="mt-1 text-xs text-slate-500">{filteredBookings.length} бронювань</p>
+            <p className="mt-1 text-xs text-slate-500">{filteredBookings.length} підтверджених бронювань</p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 shadow-xl sm:rounded-[2rem] sm:p-6">
             <p className="text-xs uppercase tracking-[0.24em] text-slate-400 sm:text-sm">Витрати</p>
