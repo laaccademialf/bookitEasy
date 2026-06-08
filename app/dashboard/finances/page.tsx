@@ -25,6 +25,11 @@ type MonthStat = {
   profit: number;
 };
 
+function fmt(iso: string): string {
+  if (!iso || iso.length < 10) return iso;
+  return `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
+}
+
 export default function FinancesPage() {
   const { profile, loading } = useContext(AuthContext);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -380,7 +385,7 @@ export default function FinancesPage() {
                       <div className="min-w-0">
                         <p className="truncate text-white">{expense.description}</p>
                         <p className="text-xs text-slate-400 sm:text-sm">
-                          {expense.category} · {expense.date}
+                          {expense.category} · {fmt(expense.date)}
                           {(expense as any).propertyId &&
                             ` · ${properties.find((p) => p.id === (expense as any).propertyId)?.title ?? ''}`}
                         </p>

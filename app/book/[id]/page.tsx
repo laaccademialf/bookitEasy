@@ -413,7 +413,7 @@ export default function BookingPage() {
                     >
                       <div className="flex items-center justify-between gap-2">
                         <p className="font-semibold text-slate-900">
-                          {booking.startDate} → {booking.endDate}
+                          {booking.startDate.split('-').reverse().join('.')} → {booking.endDate.split('-').reverse().join('.')}
                         </p>
                         <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                           booking.status === 'confirmed'

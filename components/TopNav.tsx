@@ -6,8 +6,8 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 import { Bell, CircleUserRound, PanelLeftClose, UserCircle2, X } from 'lucide-react';
 import { AuthContext } from '../app/providers';
 import { signOutUser } from '../lib/auth';
-import { getHostBookings, getPublicPropertyAvailability } from '../lib/bookings';
-import { getHostProperties, getPublicProperties } from '../lib/properties';
+import { getHostBookings } from '../lib/bookings';
+import { getHostProperties } from '../lib/properties';
 
 type NotificationItem = {
   id: string;
@@ -27,6 +27,24 @@ function isoDate(date: Date): string {
   const month = `${date.getMonth() + 1}`.padStart(2, '0');
   const day = `${date.getDate()}`.padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function normalizeStatus(value: unknown): 'pending' | 'confirmed' | 'cancelled' | 'other' {
+  const raw = String(value || '').trim().toLowerCase();
+
+  if (raw === 'confirmed' || raw === 'approve' || raw === 'approved' || raw === 'підтверджено') {
+    return 'confirmed';
+  }
+
+  if (raw === 'cancelled' || raw === 'canceled' || raw === 'declined' || raw === 'rejected' || raw === 'скасовано') {
+    return 'cancelled';
+  }
+
+  if (raw === 'pending' || raw === 'new' || raw === 'requested' || raw === 'awaiting' || raw === 'очікує') {
+    return 'pending';
+  }
+
+  return 'other';
 }
 
 export function TopNav() {
@@ -108,57 +126,20 @@ export function TopNav() {
       try {
         setNotificationsLoading(true);
 
-        let properties = await getHostProperties(profile.uid);
-        if (properties.length === 0 && profile.hostUsername) {
-          const publicProperties = await getPublicProperties();
-          properties = publicProperties.filter((property) => property.hostId === profile.hostUsername);
-        }
+        const [hostBookings, properties] = await Promise.all([
+          getHostBookings(profile.uid, true),
+          getHostProperties(profile.uid).catch(() => []),
+        ]);
+
         if (!isMounted) return;
 
         const propertyTitles = new Map(
           properties.map((property) => [property.id || '', property.title]),
         );
 
-        const availabilitiesByProperty = await Promise.all(
-          properties
-            .map((property) => property.id)
-            .filter((id): id is string => Boolean(id))
-            .map((propertyId) => getPublicPropertyAvailability(propertyId)),
+        const allBookings = hostBookings.filter(
+          (booking) => normalizeStatus((booking as { status?: unknown }).status) !== 'cancelled',
         );
-        if (!isMounted) return;
-
-        const publicBookings = availabilitiesByProperty
-          .flat()
-          .filter((booking) => booking.status !== 'cancelled');
-
-        const hostBookings = (await getHostBookings(profile.uid, true)).filter(
-          (booking) => booking.status !== 'cancelled',
-        );
-
-        const mergedByKey = new Map<
-          string,
-          {
-            id?: string;
-            propertyId: string;
-            status: 'pending' | 'confirmed' | 'cancelled';
-            startDate: string;
-            endDate: string;
-          }
-        >();
-
-        publicBookings.forEach((booking) => {
-          const key = `${booking.propertyId}:${booking.startDate}:${booking.endDate}:${booking.status}`;
-          mergedByKey.set(key, booking);
-        });
-
-        hostBookings.forEach((booking) => {
-          const key = `${booking.propertyId}:${booking.startDate}:${booking.endDate}:${booking.status}`;
-          if (!mergedByKey.has(key)) {
-            mergedByKey.set(key, booking);
-          }
-        });
-
-        const bookings = Array.from(mergedByKey.values());
 
         const today = new Date();
         const tomorrow = new Date();
@@ -168,23 +149,35 @@ export function TopNav() {
         const tomorrowIso = isoDate(tomorrow);
 
         // Add pending booking requests at the top
-        const pendingNotifications = bookings
-          .filter((booking) => booking.status === 'pending')
+        const pendingNotifications = allBookings
+          .filter((booking) => {
+            const normalized = normalizeStatus((booking as { status?: unknown }).status);
+            return normalized !== 'confirmed' && normalized !== 'cancelled';
+          })
+          .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''))
           .map((booking) => {
             const title = propertyTitles.get(booking.propertyId) || 'Обʼєкт';
+            const fmtDate = (iso: string) => iso && iso.length >= 10 ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : iso;
+            const startDate = fmtDate(booking.startDate) || 'невідома дата';
+            const endDate = fmtDate(booking.endDate) || 'невідома дата';
             return {
-              id: `pending-${booking.id || booking.propertyId}`,
+              id: `pending-${booking.id || `${booking.propertyId}-${booking.startDate}-${booking.endDate}`}`,
               title: 'Новий запит на бронювання',
-              description: `${title}: ${booking.startDate} - ${booking.endDate}`,
+              description: `${title}: ${startDate} - ${endDate}`,
               href: '/dashboard/calendar',
               unread: true,
             } as NotificationItem;
           });
 
         // Add confirmed booking notifications (check-in/occupancy)
-        const confirmedNotifications = bookings
-          .filter((booking) => booking.status === 'confirmed')
+        const confirmedNotifications = allBookings
+          .filter((booking) => normalizeStatus((booking as { status?: unknown }).status) === 'confirmed')
+          .sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''))
           .map((booking) => {
+            if (!booking.startDate || !booking.endDate) {
+              return null;
+            }
+
             const title = propertyTitles.get(booking.propertyId) || 'Обʼєкт';
             const startIso = isoDate(toLocalDate(booking.startDate));
             const endIso = isoDate(toLocalDate(booking.endDate));
@@ -193,7 +186,7 @@ export function TopNav() {
               return {
                 id: `checkin-today-${booking.id || booking.propertyId}`,
                 title: 'Сьогодні заселення',
-                description: `${title}: заїзд ${booking.startDate}`,
+                description: `${title}: заїзд ${booking.startDate.split('-').reverse().join('.')}`,
                 href: '/dashboard/calendar',
                 unread: true,
               } as NotificationItem;
@@ -203,7 +196,7 @@ export function TopNav() {
               return {
                 id: `checkin-tomorrow-${booking.id || booking.propertyId}`,
                 title: 'Завтра заселення',
-                description: `${title}: заїзд ${booking.startDate}`,
+                description: `${title}: заїзд ${booking.startDate.split('-').reverse().join('.')}`,
                 href: '/dashboard/calendar',
                 unread: true,
               } as NotificationItem;
@@ -213,7 +206,7 @@ export function TopNav() {
               return {
                 id: `occupied-now-${booking.id || booking.propertyId}`,
                 title: 'Обʼєкт заселений',
-                description: `${title}: ${booking.startDate} - ${booking.endDate}`,
+                description: `${title}: ${booking.startDate.split('-').reverse().join('.')} - ${booking.endDate.split('-').reverse().join('.')}`,  
                 href: '/dashboard/calendar',
                 unread: false,
               } as NotificationItem;
@@ -224,8 +217,14 @@ export function TopNav() {
           .filter((item): item is NotificationItem => Boolean(item));
 
         const computed = [...pendingNotifications, ...confirmedNotifications].slice(0, 8);
+        const unique = new Map<string, NotificationItem>();
+        computed.forEach((item) => {
+          if (!unique.has(item.id)) {
+            unique.set(item.id, item);
+          }
+        });
         if (isMounted) {
-          setNotifications(computed);
+          setNotifications(Array.from(unique.values()));
         }
       } catch (error) {
         console.error('Failed to compute notifications:', error);

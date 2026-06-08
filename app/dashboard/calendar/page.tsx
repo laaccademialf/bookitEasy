@@ -96,6 +96,11 @@ function daysBetween(start: Date, end: Date): number {
   return Math.floor((startOfDay(end).getTime() - startOfDay(start).getTime()) / DAY_MS);
 }
 
+function fmt(iso: string): string {
+  if (!iso || iso.length < 10) return iso;
+  return `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
+}
+
 function isDateInRange(dayIso: string, startDate: string, endDate: string): boolean {
   return dayIso >= startDate && dayIso <= endDate;
 }
@@ -435,7 +440,7 @@ export default function CalendarPage() {
                               title="Натисніть для деталей"
                             >
                               <p className="truncate">{booking.status === 'confirmed' ? 'Зайнято' : 'Очікує'}</p>
-                              <p className="mt-0.5 truncate text-[10px] opacity-80">{booking.startDate.slice(5)}-{booking.endDate.slice(5)}</p>
+                              <p className="mt-0.5 truncate text-[10px] opacity-80">{fmt(booking.startDate)}-{fmt(booking.endDate)}</p>
                             </button>
                           );
                         }
@@ -489,7 +494,7 @@ export default function CalendarPage() {
                             className={`w-full rounded-xl border px-3 py-2 text-left ${statusColor(booking.status)}`}
                           >
                             <p className="truncate text-xs font-semibold">{propertyTitle}</p>
-                            <p className="mt-1 text-[11px]">{booking.startDate} - {booking.endDate}</p>
+                            <p className="mt-1 text-[11px]">{fmt(booking.startDate)} - {fmt(booking.endDate)}</p>
                           </button>
                         ))
                       )}
@@ -540,7 +545,7 @@ export default function CalendarPage() {
                         {booking.guestName || guest?.name || guest?.email || `Гість #${booking.clientId.slice(0, 6)}`}
                       </p>
                       <p className="mt-0.5 text-[11px] font-medium">
-                        {booking.startDate} ({getCheckInTime(booking)}) → {booking.endDate} ({getCheckOutTime(booking)})
+                        {fmt(booking.startDate)} ({getCheckInTime(booking)}) → {fmt(booking.endDate)} ({getCheckOutTime(booking)})
                       </p>
                       <p className="mt-0.5 text-[11px] font-semibold">
                         {booking.totalPrice.toLocaleString('uk-UA')} грн
@@ -645,12 +650,12 @@ export default function CalendarPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                   <p className="text-xs text-slate-500">Заїзд</p>
-                  <p className="font-semibold text-slate-900">{selectedCell.booking.startDate}</p>
+                  <p className="font-semibold text-slate-900">{fmt(selectedCell.booking.startDate)}</p>
                   <p className="mt-1 text-xs text-emerald-700 font-medium">з {getCheckInTime(selectedCell.booking)}</p>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                   <p className="text-xs text-slate-500">Виїзд</p>
-                  <p className="font-semibold text-slate-900">{selectedCell.booking.endDate}</p>
+                  <p className="font-semibold text-slate-900">{fmt(selectedCell.booking.endDate)}</p>
                   <p className="mt-1 text-xs text-rose-700 font-medium">до {getCheckOutTime(selectedCell.booking)}</p>
                 </div>
               </div>
