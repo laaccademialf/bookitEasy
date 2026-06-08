@@ -249,7 +249,7 @@ export default function CalendarPage() {
   }, [bookings]);
 
   const handleUpdateStatus = async (bookingId: string, newStatus: Booking['status']) => {
-    if (!profile?.uid) return;
+    if (!profile?.uid || !bookingId) return;
 
     setUpdatingBookingId(bookingId);
     try {
@@ -261,7 +261,10 @@ export default function CalendarPage() {
       setSelectedCell((current) =>
         current ? { ...current, booking: { ...current.booking, status: newStatus } } : null,
       );
-    } catch {
+      setStatus('Статус оновлено успішно');
+      setTimeout(() => setStatus(''), 2500);
+    } catch (error) {
+      console.error('Error updating booking status:', error);
       setStatus('Не вдалося оновити статус. Спробуйте ще раз.');
       setTimeout(() => setStatus(''), 2500);
     } finally {
@@ -669,14 +672,14 @@ export default function CalendarPage() {
                 </div>
               )}
 
-              {selectedCell.booking.status !== 'cancelled' && (
+              {selectedCell.booking.status !== 'cancelled' && selectedCell.booking.id && (
                 <div className="flex gap-2 pt-1">
                   {selectedCell.booking.status === 'pending' && (
                     <button
                       type="button"
                       disabled={updatingBookingId === selectedCell.booking.id}
                       onClick={() => handleUpdateStatus(selectedCell.booking.id!, 'confirmed')}
-                      className="flex-1 rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:opacity-60"
+                      className="flex-1 rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {updatingBookingId === selectedCell.booking.id ? 'Зберігаєм...' : '✓ Підтвердити'}
                     </button>
@@ -685,7 +688,7 @@ export default function CalendarPage() {
                     type="button"
                     disabled={updatingBookingId === selectedCell.booking.id}
                     onClick={() => handleUpdateStatus(selectedCell.booking.id!, 'cancelled')}
-                    className="flex-1 rounded-full border border-rose-300 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-60"
+                    className="flex-1 rounded-full border border-rose-300 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     ✕ Скасувати
                   </button>
