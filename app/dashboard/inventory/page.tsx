@@ -17,6 +17,11 @@ import { X } from 'lucide-react';
 const CATEGORIES = Object.entries(ASSET_CATEGORY_LABELS) as [FixedAssetCategory, string][];
 const CONDITIONS = Object.entries(ASSET_CONDITION_LABELS) as [FixedAssetCondition, string][];
 
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 const EMPTY_FORM = {
   propertyId: '',
   name: '',
@@ -24,6 +29,7 @@ const EMPTY_FORM = {
   condition: '' as FixedAssetCondition | '',
   value: 0,
   quantity: 1,
+  addedAt: todayIso(),
 };
 
 export default function InventoryPage() {
@@ -91,7 +97,7 @@ export default function InventoryPage() {
   };
 
   const openForm = () => {
-    setForm({ ...EMPTY_FORM, propertyId: properties[0]?.id || '' });
+    setForm({ ...EMPTY_FORM, addedAt: todayIso(), propertyId: properties[0]?.id || '' });
     setFormError('');
     setShowForm(true);
   };
@@ -109,6 +115,7 @@ export default function InventoryPage() {
     if (!form.condition) { setFormError('Оберіть стан.'); return; }
     if (form.value < 0) { setFormError('Вартість не може бути від́ємною.'); return; }
     if (form.quantity < 1) { setFormError('Кількість має бути більше 0.'); return; }
+    if (!form.addedAt) { setFormError('Вкажіть дату додавання.'); return; }
 
     setSaving(true);
     setFormError('');
@@ -123,6 +130,7 @@ export default function InventoryPage() {
         condition: form.condition as FixedAssetCondition,
         value: form.value,
         quantity: form.quantity,
+        addedAt: form.addedAt,
       };
       const id = await createFixedAsset(newAsset);
       setAssets((prev) => [...prev, { ...newAsset, id }]);
@@ -232,7 +240,7 @@ export default function InventoryPage() {
                         <div key={asset.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
                           <p className="text-sm font-medium text-slate-900">{asset.name}</p>
                           <p className="mt-0.5 text-xs text-slate-500">
-                            {ASSET_CATEGORY_LABELS[asset.category]} • {ASSET_CONDITION_LABELS[asset.condition]} • {asset.value.toLocaleString('uk-UA')} грн • {asset.quantity} шт.
+                            {ASSET_CATEGORY_LABELS[asset.category]} • {ASSET_CONDITION_LABELS[asset.condition]} • {asset.value.toLocaleString('uk-UA')} грн • {asset.quantity} шт. • {asset.addedAt}
                           </p>
                         </div>
                       ))}
@@ -330,6 +338,17 @@ export default function InventoryPage() {
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               placeholder="Наприклад: Диван, Холодильник"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500"
+            />
+          </div>
+
+          {/* Added At */}
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">Дата додавання</label>
+            <input
+              type="date"
+              value={form.addedAt}
+              onChange={(e) => setForm((f) => ({ ...f, addedAt: e.target.value }))}
               className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500"
             />
           </div>

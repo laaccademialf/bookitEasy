@@ -25,6 +25,7 @@ export interface FixedAsset {
   condition: FixedAssetCondition;
   value: number;
   quantity: number;
+  addedAt: string;
   createdAt?: any;
 }
 
