@@ -294,7 +294,7 @@ export default function CalendarPage() {
     setSelectedCell({
       propertyTitle,
       booking,
-      guestName: guest?.name || guest?.email || `Гість #${booking.clientId.slice(0, 6)}`,
+      guestName: booking.guestName || guest?.name || guest?.email || `Гість #${booking.clientId.slice(0, 6)}`,
       guestPhone: booking.guestPhone || guest?.phone || '',
       nights,
     });
@@ -537,7 +537,7 @@ export default function CalendarPage() {
                         </span>
                       </div>
                       <p className="mt-1 text-[11px] opacity-80">
-                        {guest?.name || guest?.email || `Гість #${booking.clientId.slice(0, 6)}`}
+                        {booking.guestName || guest?.name || guest?.email || `Гість #${booking.clientId.slice(0, 6)}`}
                       </p>
                       <p className="mt-0.5 text-[11px] font-medium">
                         {booking.startDate} ({getCheckInTime(booking)}) → {booking.endDate} ({getCheckOutTime(booking)})
