@@ -9,7 +9,6 @@ import { fetchUsers, type UserProfile } from '../../../lib/auth';
 import { PageBanner } from '../../../components/PageBanner';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const DAYS_VISIBLE = 14;
 
 type CellDetail = {
   propertyTitle: string;
@@ -42,6 +41,17 @@ function addDays(date: Date, days: number): Date {
   return copy;
 }
 
+function toMonthValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  return `${year}-${month}`;
+}
+
+function monthStartFromValue(monthValue: string): Date {
+  const [year, month] = monthValue.split('-').map(Number);
+  return new Date(year, month - 1, 1);
+}
+
 function daysBetween(start: Date, end: Date): number {
   return Math.floor((startOfDay(end).getTime() - startOfDay(start).getTime()) / DAY_MS);
 }
@@ -64,7 +74,7 @@ export default function CalendarPage() {
   const [selectedProperty, setSelectedProperty] = useState('');
   const [blockDate, setBlockDate] = useState('');
   const [status, setStatus] = useState('');
-  const [dayOffset, setDayOffset] = useState(0);
+  const [selectedMonth, setSelectedMonth] = useState(() => toMonthValue(new Date()));
   const [selectedCell, setSelectedCell] = useState<CellDetail | null>(null);
   const [updatingBookingId, setUpdatingBookingId] = useState<string | null>(null);
 
@@ -100,13 +110,11 @@ export default function CalendarPage() {
     load();
   }, [profile]);
 
-  const baseStart = useMemo(() => startOfDay(new Date()), []);
-  const rangeStart = useMemo(() => addDays(baseStart, dayOffset), [baseStart, dayOffset]);
-
-  const rangeDays = useMemo(
-    () => Array.from({ length: DAYS_VISIBLE }, (_, index) => addDays(rangeStart, index)),
-    [rangeStart],
-  );
+  const rangeDays = useMemo(() => {
+    const start = monthStartFromValue(selectedMonth);
+    const daysInMonth = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
+    return Array.from({ length: daysInMonth }, (_, index) => addDays(start, index));
+  }, [selectedMonth]);
 
   const blockedCount = useMemo(
     () => properties.reduce((sum, property) => sum + (property.blockedDates?.length || 0), 0),
@@ -230,27 +238,19 @@ export default function CalendarPage() {
         title="Календар обʼєктів"
         actions={
           <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+            <label className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Місяць</label>
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={(event) => setSelectedMonth(event.target.value)}
+              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 outline-none transition focus:border-sky-400"
+            />
             <button
               type="button"
-              onClick={() => setDayOffset((current) => Math.max(0, current - 7))}
-              disabled={dayOffset === 0}
-              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-sky-400 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              -7 днів
-            </button>
-            <button
-              type="button"
-              onClick={() => setDayOffset(0)}
+              onClick={() => setSelectedMonth(toMonthValue(new Date()))}
               className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-sky-400"
             >
-              Сьогодні
-            </button>
-            <button
-              type="button"
-              onClick={() => setDayOffset((current) => current + 7)}
-              className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-sky-400"
-            >
-              +7 днів
+              Поточний місяць
             </button>
           </div>
         }
@@ -271,7 +271,7 @@ export default function CalendarPage() {
 
             <div className="mt-5 hidden overflow-x-auto pb-2 md:block">
               <div className="min-w-[980px] overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                <div className="grid border-b border-slate-200" style={{ gridTemplateColumns: `220px repeat(${DAYS_VISIBLE}, minmax(72px, 1fr))` }}>
+                <div className="grid border-b border-slate-200" style={{ gridTemplateColumns: `220px repeat(${rangeDays.length}, minmax(72px, 1fr))` }}>
                   <div className="sticky left-0 z-20 border-r border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700">
                     Номери
                   </div>
@@ -302,7 +302,7 @@ export default function CalendarPage() {
                     <div
                       key={property.id}
                       className="grid border-b border-slate-200 last:border-b-0"
-                      style={{ gridTemplateColumns: `220px repeat(${DAYS_VISIBLE}, minmax(72px, 1fr))` }}
+                      style={{ gridTemplateColumns: `220px repeat(${rangeDays.length}, minmax(72px, 1fr))` }}
                     >
                       <div className="sticky left-0 z-10 flex items-center border-r border-slate-200 bg-white px-4 py-3">
                         <p className="truncate text-sm font-semibold text-slate-800">{property.title}</p>
