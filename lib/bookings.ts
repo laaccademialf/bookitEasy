@@ -8,6 +8,8 @@ export interface Booking {
   propertyId: string;
   clientId: string;
   hostId: string;
+  guestName?: string;
+  guestPhone?: string;
   startDate: string;
   endDate: string;
   totalPrice: number;

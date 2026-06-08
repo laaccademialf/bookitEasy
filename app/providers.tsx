@@ -17,6 +17,7 @@ interface UserProfile {
   email: string;
   role: 'client' | 'host' | 'admin';
   name: string;
+  phone?: string;
   hostUsername?: string;
   subscriptionPlan?: 'starter' | 'pro' | 'enterprise';
   subscriptionStatus?: 'active' | 'paused' | 'canceled';

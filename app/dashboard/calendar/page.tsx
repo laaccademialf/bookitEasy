@@ -48,6 +48,7 @@ type CellDetail = {
   propertyTitle: string;
   booking: Booking;
   guestName: string;
+  guestPhone: string;
   nights: number;
 };
 
@@ -294,6 +295,7 @@ export default function CalendarPage() {
       propertyTitle,
       booking,
       guestName: guest?.name || guest?.email || `Гість #${booking.clientId.slice(0, 6)}`,
+      guestPhone: booking.guestPhone || guest?.phone || '',
       nights,
     });
   };
@@ -634,6 +636,12 @@ export default function CalendarPage() {
                 <p className="text-xs text-slate-500">Гість</p>
                 <p className="font-semibold text-slate-900">{selectedCell.guestName}</p>
               </div>
+              {selectedCell.booking.status === 'confirmed' && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <p className="text-xs text-slate-500">Телефон для звʼязку</p>
+                  <p className="font-semibold text-slate-900">{selectedCell.guestPhone || 'Не вказано'}</p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                   <p className="text-xs text-slate-500">Заїзд</p>

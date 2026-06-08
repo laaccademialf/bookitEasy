@@ -74,7 +74,7 @@ function expandDates(startIso: string, endIso: string): Date[] {
 export default function BookingPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
-  const { user, loading: authLoading } = useContext(AuthContext);
+  const { user, profile, loading: authLoading } = useContext(AuthContext);
   const [property, setProperty] = useState<Property | null>(null);
   const [propertyLoading, setPropertyLoading] = useState(true);
   const [propertyBookings, setPropertyBookings] = useState<Booking[]>([]);
@@ -216,6 +216,8 @@ export default function BookingPage() {
         propertyId: params.id,
         clientId: user.uid,
         hostId: property.hostId,
+        guestName: profile?.name || user.displayName || '',
+        guestPhone: profile?.phone || '',
         startDate,
         endDate,
         totalPrice: totalToPay,

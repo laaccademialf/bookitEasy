@@ -18,6 +18,7 @@ export interface UserProfile {
   email: string;
   role: UserRole;
   name: string;
+  phone?: string;
   hostUsername?: string;
   subscriptionPlan?: 'starter' | 'pro' | 'enterprise';
   subscriptionStatus?: 'active' | 'paused' | 'canceled';
@@ -260,6 +261,7 @@ export async function createUserByAdmin(payload: CreateUserByAdminPayload) {
 export interface UpdateCurrentUserAccountPayload {
   name: string;
   email: string;
+  phone?: string;
   newPassword?: string;
 }
 
@@ -282,6 +284,7 @@ export async function updateCurrentUserAccount(payload: UpdateCurrentUserAccount
   await updateDoc(doc(firestore, 'users', currentUser.uid), {
     name: payload.name,
     email: normalizedEmail,
+    phone: payload.phone || '',
   });
 
   resetUsersCache();

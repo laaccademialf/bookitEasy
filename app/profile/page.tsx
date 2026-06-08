@@ -10,6 +10,7 @@ export default function ProfilePage() {
   const { profile, loading } = useContext(AuthContext);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [status, setStatus] = useState('');
@@ -19,6 +20,7 @@ export default function ProfilePage() {
     if (!profile) return;
     setName(profile.name || '');
     setEmail(profile.email || '');
+    setPhone(profile.phone || '');
   }, [profile]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -40,6 +42,7 @@ export default function ProfilePage() {
       await updateCurrentUserAccount({
         name,
         email,
+        phone,
         newPassword: password || undefined,
       });
       setPassword('');
@@ -96,6 +99,17 @@ export default function ProfilePage() {
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-sky-400"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700">Телефон</label>
+              <input
+                type="tel"
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                placeholder="+380..."
                 className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-sky-400"
               />
             </div>
