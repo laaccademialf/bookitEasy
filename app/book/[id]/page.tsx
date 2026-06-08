@@ -222,6 +222,7 @@ export default function BookingPage() {
         status: 'pending',
         earlyCheckIn: selectedServices.includes('early-check-in'),
         lateCheckOut: selectedServices.includes('late-check-out'),
+        selectedServices,
       };
 
       await createBooking(bookingPayload);
@@ -423,53 +424,6 @@ export default function BookingPage() {
                 <span>{totalToPay.toLocaleString('uk-UA')} грн</span>
               </div>
             </div>
-
-            {selectedServices.length > 0 && (
-              <div className="mt-6 rounded-2xl border border-slate-700 bg-slate-800/50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Обрані послуги</p>
-                <div className="mt-3 space-y-2">
-                  {UPSELL_SERVICES.filter((service) => selectedServices.includes(service.id)).map((service) => (
-                    <div key={service.id} className="flex items-start gap-2 text-sm">
-                      <span className="mt-0.5 flex-shrink-0 text-emerald-400">✓</span>
-                      <div className="flex-1">
-                        <p className="font-semibold text-slate-100">{service.label}</p>
-                        <p className="text-xs text-slate-400">{service.details}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {(selectedServices.includes('early-check-in') || selectedServices.includes('late-check-out')) && (
-              <div className="mt-4 rounded-2xl bg-slate-800/50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Час заїзду та виїзду</p>
-                <div className="mt-3 flex gap-3">
-                  {selectedServices.includes('early-check-in') ? (
-                    <div className="flex-1 rounded-lg bg-emerald-900/40 px-3 py-2 text-center">
-                      <p className="text-xs text-emerald-300">Заїзд</p>
-                      <p className="text-lg font-bold text-emerald-400">09:00</p>
-                    </div>
-                  ) : (
-                    <div className="flex-1 rounded-lg bg-slate-700/40 px-3 py-2 text-center">
-                      <p className="text-xs text-slate-400">Заїзд</p>
-                      <p className="text-lg font-bold text-slate-300">12:00</p>
-                    </div>
-                  )}
-                  {selectedServices.includes('late-check-out') ? (
-                    <div className="flex-1 rounded-lg bg-sky-900/40 px-3 py-2 text-center">
-                      <p className="text-xs text-sky-300">Виїзд</p>
-                      <p className="text-lg font-bold text-sky-400">15:00</p>
-                    </div>
-                  ) : (
-                    <div className="flex-1 rounded-lg bg-slate-700/40 px-3 py-2 text-center">
-                      <p className="text-xs text-slate-400">Виїзд</p>
-                      <p className="text-lg font-bold text-slate-300">12:00</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
 
             <button
               type="button"

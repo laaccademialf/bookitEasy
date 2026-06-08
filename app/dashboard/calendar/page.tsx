@@ -9,6 +9,38 @@ import { syncCleaningTicketsForHost } from '../../../lib/cleaning';
 import { fetchUsers, type UserProfile } from '../../../lib/auth';
 import { PageBanner } from '../../../components/PageBanner';
 
+type UpsellService = {
+  id: string;
+  label: string;
+  details: string;
+  price: number;
+  chargeType: 'perDay' | 'fixed';
+};
+
+const UPSELL_SERVICES: UpsellService[] = [
+  {
+    id: 'early-check-in',
+    label: 'Ранній заїзд',
+    details: '1000 грн (з 09:00)',
+    price: 1000,
+    chargeType: 'fixed',
+  },
+  {
+    id: 'late-check-out',
+    label: 'Пізній виїзд',
+    details: '800 грн (до 15:00)',
+    price: 800,
+    chargeType: 'fixed',
+  },
+  {
+    id: 'cleaning',
+    label: 'Додаткове прибирання',
+    details: '400 грн/день',
+    price: 400,
+    chargeType: 'perDay',
+  },
+];
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DAYS_VISIBLE = 14;
 
@@ -619,6 +651,23 @@ export default function CalendarPage() {
                    'Скасовано'}
                 </p>
               </div>
+
+              {selectedCell.booking.selectedServices && selectedCell.booking.selectedServices.length > 0 && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                  <p className="text-xs font-semibold text-emerald-700 uppercase tracking-[0.15em]">Обрані послуги</p>
+                  <div className="mt-2 space-y-1">
+                    {UPSELL_SERVICES.filter((service) => selectedCell.booking.selectedServices?.includes(service.id)).map((service) => (
+                      <div key={service.id} className="flex items-start gap-2 text-xs text-emerald-800">
+                        <span className="mt-0.5 flex-shrink-0 font-bold">✓</span>
+                        <div className="flex-1">
+                          <p className="font-semibold">{service.label}</p>
+                          <p className="text-emerald-700">{service.details}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {selectedCell.booking.status !== 'cancelled' && (
                 <div className="flex gap-2 pt-1">

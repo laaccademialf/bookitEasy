@@ -14,6 +14,7 @@ export interface Booking {
   status: BookingStatus;
   earlyCheckIn?: boolean;
   lateCheckOut?: boolean;
+  selectedServices?: string[];
   createdAt?: any;
 }
 
