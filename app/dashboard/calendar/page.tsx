@@ -258,15 +258,17 @@ export default function CalendarPage() {
       setBookings((current) =>
         current.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b)),
       );
-      setSelectedCell((current) =>
-        current ? { ...current, booking: { ...current.booking, status: newStatus } } : null,
-      );
-      setStatus('Статус оновлено успішно');
-      setTimeout(() => setStatus(''), 2500);
+      
+      // Close modal after successful update
+      setSelectedCell(null);
+      
+      // Show success message
+      setStatus(newStatus === 'confirmed' ? 'Бронювання підтверджено! 🎉' : 'Бронювання скасовано');
+      setTimeout(() => setStatus(''), 3000);
     } catch (error) {
       console.error('Error updating booking status:', error);
       setStatus('Не вдалося оновити статус. Спробуйте ще раз.');
-      setTimeout(() => setStatus(''), 2500);
+      setTimeout(() => setStatus(''), 3000);
     } finally {
       setUpdatingBookingId(null);
     }
