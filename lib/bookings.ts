@@ -1,4 +1,4 @@
-import { addDoc, collection, getDocs, query, serverTimestamp, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { firestore } from './firebase';
 
 export type BookingStatus = 'pending' | 'confirmed' | 'cancelled';
@@ -61,6 +61,11 @@ export async function getClientBookings(clientId: string): Promise<Booking[]> {
   const data = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...(docSnap.data() as Booking) }));
   clientBookingsCache.set(clientId, { data, expiresAt: Date.now() + BOOKINGS_CACHE_TTL_MS });
   return data;
+}
+
+export async function updateBookingStatus(bookingId: string, status: BookingStatus): Promise<void> {
+  await updateDoc(doc(bookingsCollection, bookingId), { status });
+  resetBookingsCache();
 }
 
 export async function getPropertyBookings(propertyId: string): Promise<Booking[]> {

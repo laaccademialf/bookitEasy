@@ -4,7 +4,7 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { AuthContext } from '../../providers';
 import { addBlockedDate, getHostProperties, type Property } from '../../../lib/properties';
-import { getHostBookings, type Booking } from '../../../lib/bookings';
+import { getHostBookings, updateBookingStatus, type Booking } from '../../../lib/bookings';
 import { fetchUsers, type UserProfile } from '../../../lib/auth';
 import { PageBanner } from '../../../components/PageBanner';
 
@@ -66,6 +66,7 @@ export default function CalendarPage() {
   const [status, setStatus] = useState('');
   const [dayOffset, setDayOffset] = useState(0);
   const [selectedCell, setSelectedCell] = useState<CellDetail | null>(null);
+  const [updatingBookingId, setUpdatingBookingId] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -162,6 +163,31 @@ export default function CalendarPage() {
       setStatus('Не вдалося заблокувати дату.');
     } finally {
       setTimeout(() => setStatus(''), 2500);
+    }
+  };
+
+  const upcomingBookings = useMemo(() => {
+    const today = toISODate(new Date());
+    return bookings
+      .filter((b) => b.status !== 'cancelled' && b.endDate >= today)
+      .sort((a, b) => a.startDate.localeCompare(b.startDate));
+  }, [bookings]);
+
+  const handleUpdateStatus = async (bookingId: string, newStatus: Booking['status']) => {
+    setUpdatingBookingId(bookingId);
+    try {
+      await updateBookingStatus(bookingId, newStatus);
+      setBookings((current) =>
+        current.map((b) => (b.id === bookingId ? { ...b, status: newStatus } : b)),
+      );
+      setSelectedCell((current) =>
+        current ? { ...current, booking: { ...current.booking, status: newStatus } } : null,
+      );
+    } catch {
+      setStatus('Не вдалося оновити статус. Спробуйте ще раз.');
+      setTimeout(() => setStatus(''), 2500);
+    } finally {
+      setUpdatingBookingId(null);
     }
   };
 
@@ -363,8 +389,51 @@ export default function CalendarPage() {
             </div>
           </section>
 
-          <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-md sm:rounded-[2rem] sm:p-6">
-            <h2 className="text-xl font-semibold text-slate-900 sm:text-2xl">Заблокувати дату</h2>
+          <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-md sm:rounded-[2rem] sm:p-6">
+            <div>
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Бронювання</p>
+              <h2 className="mt-1 text-xl font-semibold text-slate-900">Найближчі броні</h2>
+            </div>
+            <div className="max-h-72 space-y-2 overflow-y-auto">
+              {upcomingBookings.length === 0 ? (
+                <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">Активних бронювань немає.</p>
+              ) : (
+                upcomingBookings.map((booking) => {
+                  const property = properties.find((p) => p.id === booking.propertyId);
+                  const guest = usersMap.get(booking.clientId);
+                  return (
+                    <button
+                      key={booking.id}
+                      type="button"
+                      onClick={() => openBookingDetail(property?.title ?? 'Обʼєкт', booking)}
+                      className={`w-full rounded-2xl border px-3 py-3 text-left transition hover:shadow-sm ${statusColor(booking.status)}`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="truncate text-xs font-semibold">{property?.title ?? 'Обʼєкт'}</p>
+                        <span className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                          booking.status === 'confirmed' ? 'bg-emerald-200 text-emerald-800' :
+                          booking.status === 'pending' ? 'bg-amber-200 text-amber-800' :
+                          'bg-slate-200 text-slate-600'
+                        }`}>
+                          {booking.status === 'confirmed' ? 'Підтверджено' : booking.status === 'pending' ? 'Очікує' : 'Скасовано'}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[11px] opacity-80">
+                        {guest?.name || guest?.email || booking.clientId}
+                      </p>
+                      <p className="mt-0.5 text-[11px] font-medium">
+                        {booking.startDate} → {booking.endDate}
+                      </p>
+                      <p className="mt-0.5 text-[11px] font-semibold">
+                        {booking.totalPrice.toLocaleString('uk-UA')} грн
+                      </p>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            <h2 className="pt-2 text-xl font-semibold text-slate-900 sm:text-2xl">Заблокувати дату</h2>
             <form onSubmit={handleBlockDate} className="mt-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700">Обрати об'єкт</label>
@@ -465,10 +534,45 @@ export default function CalendarPage() {
                   <p className="font-semibold text-slate-900">{selectedCell.nights}</p>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  <p className="text-xs text-slate-500">Статус</p>
-                  <p className="font-semibold text-slate-900">{selectedCell.booking.status}</p>
+                  <p className="text-xs text-slate-500">Сума</p>
+                  <p className="font-semibold text-slate-900">{selectedCell.booking.totalPrice.toLocaleString('uk-UA')} грн</p>
                 </div>
               </div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-xs text-slate-500">Статус</p>
+                <p className={`font-semibold ${
+                  selectedCell.booking.status === 'confirmed' ? 'text-emerald-700' :
+                  selectedCell.booking.status === 'pending' ? 'text-amber-700' :
+                  'text-slate-700'
+                }`}>
+                  {selectedCell.booking.status === 'confirmed' ? 'Підтверджено' :
+                   selectedCell.booking.status === 'pending' ? 'Очікує підтвердження' :
+                   'Скасовано'}
+                </p>
+              </div>
+
+              {selectedCell.booking.status !== 'cancelled' && (
+                <div className="flex gap-2 pt-1">
+                  {selectedCell.booking.status === 'pending' && (
+                    <button
+                      type="button"
+                      disabled={updatingBookingId === selectedCell.booking.id}
+                      onClick={() => handleUpdateStatus(selectedCell.booking.id!, 'confirmed')}
+                      className="flex-1 rounded-full bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400 disabled:opacity-60"
+                    >
+                      {updatingBookingId === selectedCell.booking.id ? 'Зберігаєм...' : '✓ Підтвердити'}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={updatingBookingId === selectedCell.booking.id}
+                    onClick={() => handleUpdateStatus(selectedCell.booking.id!, 'cancelled')}
+                    className="flex-1 rounded-full border border-rose-300 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-60"
+                  >
+                    ✕ Скасувати
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
