@@ -186,11 +186,7 @@ export default function CalendarPage() {
   }, []);
 
   const blockedCount = useMemo(
-    () => {
-      const count = properties.reduce((sum, property) => sum + (property.blockedDates?.length || 0), 0);
-      console.log('Blocked count:', count, 'Properties:', properties.map(p => ({ id: p.id, title: p.title, blockedDates: p.blockedDates })));
-      return count;
-    },
+    () => properties.reduce((sum, property) => sum + (property.blockedDates?.length || 0), 0),
     [properties],
   );
 
@@ -254,31 +250,18 @@ export default function CalendarPage() {
   };
 
   const handleUnblockDate = async () => {
-    if (!selectedCell?.blockedDate || !selectedCell?.propertyId) {
-      console.log('Missing data:', { blockedDate: selectedCell?.blockedDate, propertyId: selectedCell?.propertyId });
-      return;
-    }
+    if (!selectedCell?.blockedDate || !selectedCell?.propertyId) return;
 
     const propertyIdToUnblock = selectedCell.propertyId;
     const dateToUnblock = selectedCell.blockedDate;
 
-    console.log('Unblocking date:', { propertyIdToUnblock, dateToUnblock });
-
     if (!window.confirm('Розблокувати цю дату?')) return;
 
     try {
-      // Remove the blocked date from Firestore
       await removeBlockedDate(propertyIdToUnblock, dateToUnblock);
-      console.log('Date unblocked successfully from Firestore');
 
-      // Wait a bit for Firestore to process
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Reload all properties from server to ensure consistency
       if (profile?.uid) {
-        console.log('Reloading properties for user:', profile.uid);
         const updatedProperties = await getHostProperties(profile.uid);
-        console.log('Properties reloaded, count:', updatedProperties.length);
         setProperties(updatedProperties);
       }
 
@@ -286,11 +269,9 @@ export default function CalendarPage() {
       setSelectedCell(null);
     } catch (error) {
       console.error('Error unblocking date:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('Error details:', errorMessage);
-      setStatus('Не вдалося розблокувати дату: ' + errorMessage);
+      setStatus('Не вдалося розблокувати дату.');
     } finally {
-      setTimeout(() => setStatus(''), 3000);
+      setTimeout(() => setStatus(''), 2500);
     }
   };
 
@@ -302,7 +283,7 @@ export default function CalendarPage() {
   }, [bookings]);
 
   const selectedBookingId = useMemo(() => {
-    if (!selectedCell) return null;
+    if (!selectedCell?.booking) return null;
     if (selectedCell.booking.id) return selectedCell.booking.id;
 
     const match = bookings.find((booking) =>
@@ -325,7 +306,7 @@ export default function CalendarPage() {
       const freshBookings = await getHostBookings(profile.uid, true);
       setBookings(freshBookings);
       setSelectedCell((current) =>
-        current ? { ...current, booking: { ...current.booking, status: newStatus } } : null,
+        current?.booking ? { ...current, booking: { ...current.booking, status: newStatus } } : current,
       );
 
       setStatus(newStatus === 'confirmed' ? 'Бронювання підтверджено' : 'Бронювання скасовано');
@@ -344,11 +325,20 @@ export default function CalendarPage() {
     const nights = Math.max(1, daysBetween(toLocalDate(booking.startDate), toLocalDate(booking.endDate)));
 
     setSelectedCell({
+      propertyId: booking.propertyId,
       propertyTitle,
       booking,
       guestName: booking.guestName || guest?.name || guest?.email || `Гість #${booking.clientId.slice(0, 6)}`,
       guestPhone: booking.guestPhone || guest?.phone || '',
       nights,
+    });
+  };
+
+  const openBlockedDetail = (propertyId: string, propertyTitle: string, blockedDate: string) => {
+    setSelectedCell({
+      propertyId,
+      propertyTitle,
+      blockedDate,
     });
   };
 
@@ -494,9 +484,15 @@ export default function CalendarPage() {
 
                         if (isBlocked) {
                           return (
-                            <div key={`${property.id}:${iso}`} className="m-1 rounded-lg border border-rose-300 bg-rose-50 px-2 py-2 text-[11px] font-semibold text-rose-700">
+                            <button
+                              key={`${property.id}:${iso}`}
+                              type="button"
+                              onClick={() => property.id && openBlockedDetail(property.id, property.title, iso)}
+                              className="m-1 rounded-lg border border-rose-300 bg-rose-50 px-2 py-2 text-left text-[11px] font-semibold text-rose-700 transition hover:shadow-sm"
+                              title="Натисніть для деталей"
+                            >
                               Блок
-                            </div>
+                            </button>
                           );
                         }
 
@@ -517,6 +513,11 @@ export default function CalendarPage() {
                   if (!booking) return [];
                   return [{ propertyTitle: property.title, booking }];
                 });
+                const dayBlocked = properties.flatMap((property) => {
+                  const isBlocked = (property.blockedDates || []).includes(iso);
+                  if (!isBlocked || !property.id) return [];
+                  return [{ propertyId: property.id, propertyTitle: property.title, date: iso }];
+                });
 
                 return (
                   <article key={iso} className={`rounded-2xl border p-3 ${isToday ? 'border-sky-300 bg-sky-50/70' : 'border-slate-200 bg-white'}`}>
@@ -530,20 +531,33 @@ export default function CalendarPage() {
                     </div>
 
                     <div className="mt-3 space-y-2">
-                      {dayBookings.length === 0 ? (
+                      {dayBookings.length === 0 && dayBlocked.length === 0 ? (
                         <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500">Усі обʼєкти вільні</p>
                       ) : (
-                        dayBookings.map(({ propertyTitle, booking }) => (
-                          <button
-                            key={`${propertyTitle}:${booking.id || booking.startDate}`}
-                            type="button"
-                            onClick={() => openBookingDetail(propertyTitle, booking)}
-                            className={`w-full rounded-xl border px-3 py-2 text-left ${statusColor(booking.status)}`}
-                          >
-                            <p className="truncate text-xs font-semibold">{propertyTitle}</p>
-                            <p className="mt-1 text-[11px]">{fmt(booking.startDate)} - {fmt(booking.endDate)}</p>
-                          </button>
-                        ))
+                        <>
+                          {dayBookings.map(({ propertyTitle, booking }) => (
+                            <button
+                              key={`${propertyTitle}:${booking.id || booking.startDate}`}
+                              type="button"
+                              onClick={() => openBookingDetail(propertyTitle, booking)}
+                              className={`w-full rounded-xl border px-3 py-2 text-left ${statusColor(booking.status)}`}
+                            >
+                              <p className="truncate text-xs font-semibold">{propertyTitle}</p>
+                              <p className="mt-1 text-[11px]">{fmt(booking.startDate)} - {fmt(booking.endDate)}</p>
+                            </button>
+                          ))}
+                          {dayBlocked.map(({ propertyId, propertyTitle, date }) => (
+                            <button
+                              key={`${propertyId}:${date}:blocked`}
+                              type="button"
+                              onClick={() => openBlockedDetail(propertyId, propertyTitle, date)}
+                              className="w-full rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-left text-rose-800"
+                            >
+                              <p className="truncate text-xs font-semibold">{propertyTitle}</p>
+                              <p className="mt-1 text-[11px]">Заблоковано: {fmt(date)}</p>
+                            </button>
+                          ))}
+                        </>
                       )}
                     </div>
                   </article>
@@ -649,14 +663,7 @@ export default function CalendarPage() {
                     <button
                       key={`${property.id}-${date}`}
                       type="button"
-                      onClick={() => {
-                        console.log('Clicked blocked date:', { propertyId: property.id, date });
-                        setSelectedCell({
-                          propertyId: property.id!,
-                          propertyTitle: property.title,
-                          blockedDate: date,
-                        });
-                      }}
+                      onClick={() => property.id && openBlockedDetail(property.id, property.title, date)}
                       className="w-full text-left rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900 transition hover:border-rose-300 hover:bg-rose-100"
                     >
                       <span className="font-semibold text-rose-950">{property.title}</span> - {fmt(date)}
