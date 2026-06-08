@@ -75,8 +75,9 @@ export default function CleaningPage() {
       await syncCleaningTicketsForHost(profile.uid);
       await loadData(profile.uid);
       setStatus('Тікети синхронізовано з календарем та бронюваннями.');
-    } catch {
-      setStatus('Не вдалося синхронізувати тікети. Спробуйте ще раз.');
+    } catch (error: any) {
+      const message = error?.message ? String(error.message) : 'Не вдалося синхронізувати тікети. Спробуйте ще раз.';
+      setStatus(message);
     } finally {
       setSyncing(false);
       setTimeout(() => setStatus(''), 2500);
