@@ -60,6 +60,12 @@ export function TopNav() {
     [notifications],
   );
 
+  const logoHref = useMemo(() => {
+    if (pathname.startsWith('/dashboard')) return '/dashboard';
+    if (pathname.startsWith('/admin')) return '/admin';
+    return '/';
+  }, [pathname]);
+
   const handleSignOut = async () => {
     await signOutUser();
     setMobileOpen(false);
@@ -219,7 +225,7 @@ export function TopNav() {
               <PanelLeftClose className="h-5 w-5" />
             </button>
           )}
-          <Link href="/" className="text-lg font-semibold text-slate-900 sm:text-xl">
+          <Link href={logoHref} className="text-lg font-semibold text-slate-900 sm:text-xl">
             BookItEasy
           </Link>
         </div>
