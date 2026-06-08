@@ -186,7 +186,11 @@ export default function CalendarPage() {
   }, []);
 
   const blockedCount = useMemo(
-    () => properties.reduce((sum, property) => sum + (property.blockedDates?.length || 0), 0),
+    () => {
+      const count = properties.reduce((sum, property) => sum + (property.blockedDates?.length || 0), 0);
+      console.log('Blocked count:', count, 'Properties:', properties.map(p => ({ id: p.id, title: p.title, blockedDates: p.blockedDates })));
+      return count;
+    },
     [properties],
   );
 
@@ -638,13 +642,14 @@ export default function CalendarPage() {
                     <button
                       key={`${property.id}-${date}`}
                       type="button"
-                      onClick={() =>
+                      onClick={() => {
+                        console.log('Clicked blocked date:', { propertyId: property.id, date });
                         setSelectedCell({
                           propertyId: property.id!,
                           propertyTitle: property.title,
                           blockedDate: date,
-                        })
-                      }
+                        });
+                      }}
                       className="w-full text-left rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900 transition hover:border-rose-300 hover:bg-rose-100"
                     >
                       <span className="font-semibold text-rose-950">{property.title}</span> - {fmt(date)}
