@@ -1,5 +1,6 @@
 import {
   addDoc,
+  arrayRemove,
   arrayUnion,
   collection,
   deleteDoc,
@@ -114,6 +115,16 @@ export async function addBlockedDate(propertyId: string, date: string) {
   const existing = await getPropertyById(propertyId);
   await updateDoc(doc(propertiesCollection, propertyId), {
     blockedDates: arrayUnion(date),
+    updatedAt: serverTimestamp(),
+  });
+  resetPublicPropertiesCache();
+  resetHostPropertiesCache(existing?.hostId);
+}
+
+export async function removeBlockedDate(propertyId: string, date: string) {
+  const existing = await getPropertyById(propertyId);
+  await updateDoc(doc(propertiesCollection, propertyId), {
+    blockedDates: arrayRemove(date),
     updatedAt: serverTimestamp(),
   });
   resetPublicPropertiesCache();

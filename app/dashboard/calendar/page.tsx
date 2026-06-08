@@ -3,7 +3,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { AuthContext } from '../../providers';
-import { addBlockedDate, getHostProperties, type Property } from '../../../lib/properties';
+import { addBlockedDate, removeBlockedDate, getHostProperties, type Property } from '../../../lib/properties';
 import { getHostBookings, updateBookingStatus, getCheckInTime, getCheckOutTime, type Booking } from '../../../lib/bookings';
 import { syncCleaningTicketsForHost } from '../../../lib/cleaning';
 import { fetchUsers, type UserProfile } from '../../../lib/auth';
@@ -242,6 +242,30 @@ export default function CalendarPage() {
       setBlockDate('');
     } catch {
       setStatus('Не вдалося заблокувати дату.');
+    } finally {
+      setTimeout(() => setStatus(''), 2500);
+    }
+  };
+
+  const handleUnblockDate = async (propertyId: string, date: string) => {
+    if (!window.confirm('Розблокувати цю дату?')) return;
+
+    try {
+      await removeBlockedDate(propertyId, date);
+
+      setProperties((current) =>
+        current.map((property) => {
+          if (property.id !== propertyId) return property;
+          return {
+            ...property,
+            blockedDates: (property.blockedDates || []).filter((d) => d !== date),
+          };
+        }),
+      );
+
+      setStatus('Дату розблоковано');
+    } catch {
+      setStatus('Не вдалося розблокувати дату.');
     } finally {
       setTimeout(() => setStatus(''), 2500);
     }
@@ -599,8 +623,15 @@ export default function CalendarPage() {
               <div className="mt-4 max-h-72 space-y-3 overflow-y-auto pr-1">
                 {properties.flatMap((property) =>
                   property.blockedDates?.map((date) => (
-                    <div key={`${property.id}-${date}`} className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
-                      <span className="font-semibold text-slate-900">{property.title}</span> - {date}
+                    <div key={`${property.id}-${date}`} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                      <span><span className="font-semibold text-slate-900">{property.title}</span> - {fmt(date)}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleUnblockDate(property.id!, date)}
+                        className="rounded-full border border-rose-300 bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-600 transition hover:bg-rose-100"
+                      >
+                        Видалити
+                      </button>
                     </div>
                   )) ?? [],
                 ).length === 0 ? (
