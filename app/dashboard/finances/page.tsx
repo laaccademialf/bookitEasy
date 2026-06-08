@@ -3,7 +3,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { AuthContext } from '../../providers';
 import { Booking, getHostBookings } from '../../../lib/bookings';
-import { createExpense, getHostExpenses, updateExpense, Expense } from '../../../lib/expenses';
+import { createExpense, deleteExpense, getHostExpenses, updateExpense, Expense } from '../../../lib/expenses';
 import { getHostProperties, Property } from '../../../lib/properties';
 import { PageBanner } from '../../../components/PageBanner';
 
@@ -213,6 +213,32 @@ export default function FinancesPage() {
   const handleCancelEditExpense = () => {
     setEditingExpenseId(null);
     setExpenseForm({ category: 'utility', amount: 0, date: '', description: '', propertyId: '' });
+  };
+
+  const handleDeleteExpense = async (expense: Expense) => {
+    if (!expense.id) {
+      setStatus('Неможливо видалити цю витрату.');
+      setTimeout(() => setStatus(''), 2000);
+      return;
+    }
+
+    const confirmed = window.confirm('Видалити цю витрату?');
+    if (!confirmed) return;
+
+    try {
+      await deleteExpense(expense.id);
+      setExpenses((current) => current.filter((item) => item.id !== expense.id));
+
+      if (editingExpenseId === expense.id) {
+        handleCancelEditExpense();
+      }
+
+      setStatus('Витрату видалено');
+    } catch {
+      setStatus('Не вдалося видалити витрату. Перевірте права доступу.');
+    }
+
+    setTimeout(() => setStatus(''), 2500);
   };
 
   if (loading) {
@@ -428,6 +454,13 @@ export default function FinancesPage() {
                           className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-semibold text-slate-200 transition hover:border-sky-400"
                         >
                           Редагувати
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteExpense(expense)}
+                          className="rounded-full border border-rose-800/60 bg-rose-900/30 px-3 py-1 text-xs font-semibold text-rose-200 transition hover:border-rose-500"
+                        >
+                          Видалити
                         </button>
                       </div>
                     </div>

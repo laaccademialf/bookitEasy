@@ -1,4 +1,4 @@
-import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, updateDoc, where, onSnapshot } from 'firebase/firestore';
 import { firestore } from './firebase';
 
 export type BookingStatus = 'pending' | 'confirmed' | 'cancelled';
@@ -268,4 +268,16 @@ export async function getPropertyBookings(propertyId: string): Promise<Booking[]
   const data = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...(docSnap.data() as Booking) }));
   propertyBookingsCache.set(propertyId, { data, expiresAt: Date.now() + BOOKINGS_CACHE_TTL_MS });
   return data;
+}
+
+export function subscribeToHostBookings(hostId: string, callback: (bookings: Booking[]) => void): () => void {
+  const q = query(bookingsCollection, where('hostId', '==', hostId));
+  const unsubscribe = onSnapshot(q, (snapshot) => {
+    const bookings = snapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...(docSnap.data() as Booking),
+    }));
+    callback(bookings);
+  });
+  return unsubscribe;
 }

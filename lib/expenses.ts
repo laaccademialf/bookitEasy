@@ -1,4 +1,4 @@
-import { addDoc, collection, doc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { firestore } from './firebase';
 
 export type ExpenseCategory = 'utility' | 'cleaning' | 'repair' | 'other';
@@ -42,6 +42,11 @@ export async function updateExpense(
     ...expense,
     updatedAt: serverTimestamp(),
   });
+  resetExpensesCache();
+}
+
+export async function deleteExpense(expenseId: string) {
+  await deleteDoc(doc(expensesCollection, expenseId));
   resetExpensesCache();
 }
 

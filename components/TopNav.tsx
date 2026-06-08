@@ -6,8 +6,8 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 import { Bell, CircleUserRound, PanelLeftClose, UserCircle2, X } from 'lucide-react';
 import { AuthContext } from '../app/providers';
 import { signOutUser } from '../lib/auth';
-import { getHostBookings } from '../lib/bookings';
-import { getHostProperties } from '../lib/properties';
+import { getHostBookings, getPublicPropertyAvailability } from '../lib/bookings';
+import { getHostProperties, getPublicProperties } from '../lib/properties';
 
 type NotificationItem = {
   id: string;
@@ -97,23 +97,68 @@ export function TopNav() {
   }, [pathname]);
 
   useEffect(() => {
-    const loadNotifications = async () => {
-      if (!profile?.uid || (profile.role !== 'host' && profile.role !== 'admin')) {
-        setNotifications([]);
-        return;
-      }
+    if (!profile?.uid) {
+      setNotifications([]);
+      return;
+    }
 
+    let isMounted = true;
+
+    const loadNotifications = async () => {
       try {
         setNotificationsLoading(true);
 
-        const [bookings, properties] = await Promise.all([
-          getHostBookings(profile.uid),
-          getHostProperties(profile.uid),
-        ]);
+        let properties = await getHostProperties(profile.uid);
+        if (properties.length === 0 && profile.hostUsername) {
+          const publicProperties = await getPublicProperties();
+          properties = publicProperties.filter((property) => property.hostId === profile.hostUsername);
+        }
+        if (!isMounted) return;
 
         const propertyTitles = new Map(
           properties.map((property) => [property.id || '', property.title]),
         );
+
+        const availabilitiesByProperty = await Promise.all(
+          properties
+            .map((property) => property.id)
+            .filter((id): id is string => Boolean(id))
+            .map((propertyId) => getPublicPropertyAvailability(propertyId)),
+        );
+        if (!isMounted) return;
+
+        const publicBookings = availabilitiesByProperty
+          .flat()
+          .filter((booking) => booking.status !== 'cancelled');
+
+        const hostBookings = (await getHostBookings(profile.uid, true)).filter(
+          (booking) => booking.status !== 'cancelled',
+        );
+
+        const mergedByKey = new Map<
+          string,
+          {
+            id?: string;
+            propertyId: string;
+            status: 'pending' | 'confirmed' | 'cancelled';
+            startDate: string;
+            endDate: string;
+          }
+        >();
+
+        publicBookings.forEach((booking) => {
+          const key = `${booking.propertyId}:${booking.startDate}:${booking.endDate}:${booking.status}`;
+          mergedByKey.set(key, booking);
+        });
+
+        hostBookings.forEach((booking) => {
+          const key = `${booking.propertyId}:${booking.startDate}:${booking.endDate}:${booking.status}`;
+          if (!mergedByKey.has(key)) {
+            mergedByKey.set(key, booking);
+          }
+        });
+
+        const bookings = Array.from(mergedByKey.values());
 
         const today = new Date();
         const tomorrow = new Date();
@@ -122,7 +167,22 @@ export function TopNav() {
         const todayIso = isoDate(today);
         const tomorrowIso = isoDate(tomorrow);
 
-        const computed = bookings
+        // Add pending booking requests at the top
+        const pendingNotifications = bookings
+          .filter((booking) => booking.status === 'pending')
+          .map((booking) => {
+            const title = propertyTitles.get(booking.propertyId) || 'Обʼєкт';
+            return {
+              id: `pending-${booking.id || booking.propertyId}`,
+              title: 'Новий запит на бронювання',
+              description: `${title}: ${booking.startDate} - ${booking.endDate}`,
+              href: '/dashboard/calendar',
+              unread: true,
+            } as NotificationItem;
+          });
+
+        // Add confirmed booking notifications (check-in/occupancy)
+        const confirmedNotifications = bookings
           .filter((booking) => booking.status === 'confirmed')
           .map((booking) => {
             const title = propertyTitles.get(booking.propertyId) || 'Обʼєкт';
@@ -161,18 +221,31 @@ export function TopNav() {
 
             return null;
           })
-          .filter((item): item is NotificationItem => Boolean(item))
-          .slice(0, 8);
+          .filter((item): item is NotificationItem => Boolean(item));
 
-        setNotifications(computed);
-      } catch {
-        setNotifications([]);
+        const computed = [...pendingNotifications, ...confirmedNotifications].slice(0, 8);
+        if (isMounted) {
+          setNotifications(computed);
+        }
+      } catch (error) {
+        console.error('Failed to compute notifications:', error);
+        if (isMounted) {
+          setNotifications([]);
+        }
       } finally {
-        setNotificationsLoading(false);
+        if (isMounted) {
+          setNotificationsLoading(false);
+        }
       }
     };
 
     loadNotifications();
+    const intervalId = window.setInterval(loadNotifications, 15000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
   }, [profile]);
 
   useEffect(() => {
