@@ -5,9 +5,7 @@ import { AuthContext } from '../../providers';
 import { getHostProperties, type Property } from '../../../lib/properties';
 import {
   getDerivedCleaningTicketsForHost,
-  getHostCleaningTickets,
   syncCleaningTicketsForHost,
-  updateCleaningTicketStatus,
   type CleaningTicket,
 } from '../../../lib/cleaning';
 import { PageBanner } from '../../../components/PageBanner';
@@ -29,8 +27,7 @@ export default function CleaningPage() {
   const [tickets, setTickets] = useState<CleaningTicket[]>([]);
   const [status, setStatus] = useState('');
   const [syncing, setSyncing] = useState(false);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [fallbackMode, setFallbackMode] = useState(false);
+  const [fallbackMode, setFallbackMode] = useState(true);
 
   const propertyTitleMap = useMemo(
     () => new Map(properties.map((property) => [property.id, property.title])),
@@ -38,18 +35,14 @@ export default function CleaningPage() {
   );
 
   const loadData = async (hostId: string) => {
-    const propsData = await getHostProperties(hostId);
-    setProperties(propsData);
+    const [propsData, derivedTickets] = await Promise.all([
+      getHostProperties(hostId),
+      getDerivedCleaningTicketsForHost(hostId),
+    ]);
 
-    try {
-      const ticketsData = await getHostCleaningTickets(hostId);
-      setTickets(ticketsData);
-      setFallbackMode(false);
-    } catch {
-      const derivedTickets = await getDerivedCleaningTicketsForHost(hostId);
-      setTickets(derivedTickets);
-      setFallbackMode(true);
-    }
+    setProperties(propsData);
+    setTickets(derivedTickets);
+    setFallbackMode(true);
   };
 
   useEffect(() => {
@@ -58,14 +51,11 @@ export default function CleaningPage() {
 
       setSyncing(true);
       try {
-        await syncCleaningTicketsForHost(profile.uid);
-      } catch {
-        setFallbackMode(true);
-      } finally {
         await loadData(profile.uid);
-        if (fallbackMode) {
-          setStatus('Працюємо в спрощеному режимі: задачі формуються з підтверджених бронювань.');
-        }
+        setStatus('Працюємо в спрощеному режимі: задачі формуються з підтверджених бронювань.');
+      } catch {
+        setStatus('Не вдалося завантажити задачі прибирання.');
+      } finally {
         setSyncing(false);
       }
     };
@@ -91,35 +81,21 @@ export default function CleaningPage() {
     try {
       await syncCleaningTicketsForHost(profile.uid);
       await loadData(profile.uid);
-      setStatus('Тікети синхронізовано з календарем та бронюваннями.');
-      } catch {
+      setStatus('Оновлено. Показано задачі з підтверджених бронювань.');
+    } catch {
       const derivedTickets = await getDerivedCleaningTicketsForHost(profile.uid);
       setTickets(derivedTickets);
       setFallbackMode(true);
       setStatus('Синхронізація Firestore недоступна. Показано задачі з підтверджених бронювань.');
-      } finally {
-        setSyncing(false);
+    } finally {
+      setSyncing(false);
       setTimeout(() => setStatus(''), 3000);
     }
   };
 
   const handleToggleTicket = async (ticket: CleaningTicket, statusNext: CleaningTicket['status']) => {
-    if (fallbackMode) {
-      setStatus('У спрощеному режимі зміна статусу недоступна. Оновіть правила Firestore, щоб керувати тікетами.');
-      setTimeout(() => setStatus(''), 3000);
-      return;
-    }
-
-    setUpdatingId(ticket.id);
-    try {
-      await updateCleaningTicketStatus(ticket.id, statusNext);
-      setTickets((current) => current.map((item) => (item.id === ticket.id ? { ...item, status: statusNext } : item)));
-    } catch {
-      setStatus('Не вдалося оновити статус тікета.');
-      setTimeout(() => setStatus(''), 2500);
-    } finally {
-      setUpdatingId(null);
-    }
+    setStatus('У спрощеному режимі зміна статусу недоступна. Оновіть правила Firestore, щоб керувати тікетами.');
+    setTimeout(() => setStatus(''), 3000);
   };
 
   if (loading) {
@@ -177,11 +153,11 @@ export default function CleaningPage() {
                     <p className="mt-1 text-sm text-slate-600">{typeLabel[ticket.type]} • {formatDate(ticket.date)}</p>
                     <button
                       type="button"
-                      disabled={updatingId === ticket.id || fallbackMode}
+                      disabled={fallbackMode}
                       onClick={() => handleToggleTicket(ticket, 'done')}
                       className="mt-3 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {updatingId === ticket.id ? 'Оновлення...' : 'Позначити виконаним'}
+                      Позначити виконаним
                     </button>
                   </div>
                 ))
@@ -204,11 +180,11 @@ export default function CleaningPage() {
                     <p className="mt-1 text-sm text-slate-600">{typeLabel[ticket.type]} • {formatDate(ticket.date)}</p>
                     <button
                       type="button"
-                      disabled={updatingId === ticket.id || fallbackMode}
+                      disabled={fallbackMode}
                       onClick={() => handleToggleTicket(ticket, 'open')}
                       className="mt-3 rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-sky-400 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {updatingId === ticket.id ? 'Оновлення...' : 'Повернути в активні'}
+                      Повернути в активні
                     </button>
                   </div>
                 ))
