@@ -1,6 +1,5 @@
 import {
   addDoc,
-  arrayRemove,
   arrayUnion,
   collection,
   deleteDoc,
@@ -123,8 +122,14 @@ export async function addBlockedDate(propertyId: string, date: string) {
 
 export async function removeBlockedDate(propertyId: string, date: string) {
   const existing = await getPropertyById(propertyId);
+  if (!existing) {
+    throw new Error('Property not found');
+  }
+
+  const nextBlockedDates = (existing.blockedDates || []).filter((blockedDate) => blockedDate !== date);
+
   await updateDoc(doc(propertiesCollection, propertyId), {
-    blockedDates: arrayRemove(date),
+    blockedDates: nextBlockedDates,
     updatedAt: serverTimestamp(),
   });
   resetPublicPropertiesCache();
