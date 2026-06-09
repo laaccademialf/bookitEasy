@@ -125,6 +125,7 @@ export default function CalendarPage() {
   const [dayOffset, setDayOffset] = useState(0);
   const [selectedCell, setSelectedCell] = useState<CellDetail | null>(null);
   const [updatingBookingId, setUpdatingBookingId] = useState<string | null>(null);
+  const [unblockingKey, setUnblockingKey] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -249,30 +250,47 @@ export default function CalendarPage() {
     }
   };
 
-  const handleUnblockDate = async () => {
-    if (!selectedCell?.blockedDate || !selectedCell?.propertyId) return;
-
-    const propertyIdToUnblock = selectedCell.propertyId;
-    const dateToUnblock = selectedCell.blockedDate;
-
+  const handleUnblockDateByValue = async (propertyId: string, date: string, closeModalAfter = false) => {
+    if (!profile?.uid || !propertyId || !date) return;
     if (!window.confirm('Розблокувати цю дату?')) return;
 
-    try {
-      await removeBlockedDate(propertyIdToUnblock, dateToUnblock);
+    const key = `${propertyId}:${date}`;
+    setUnblockingKey(key);
 
-      if (profile?.uid) {
-        const updatedProperties = await getHostProperties(profile.uid);
-        setProperties(updatedProperties);
+    try {
+      await removeBlockedDate(propertyId, date);
+
+      setProperties((current) =>
+        current.map((property) => {
+          if (property.id !== propertyId) return property;
+          return {
+            ...property,
+            blockedDates: (property.blockedDates || []).filter((blockedDate) => blockedDate !== date),
+          };
+        }),
+      );
+
+      if (closeModalAfter) {
+        setSelectedCell(null);
       }
 
       setStatus('Дату розблоковано');
-      setSelectedCell(null);
     } catch (error) {
       console.error('Error unblocking date:', error);
-      setStatus('Не вдалося розблокувати дату.');
+      const errorCode =
+        typeof error === 'object' && error !== null && 'code' in error
+          ? String((error as { code?: unknown }).code)
+          : '';
+      setStatus(errorCode.includes('permission') ? 'Немає прав на розблокування цієї дати.' : 'Не вдалося розблокувати дату.');
     } finally {
-      setTimeout(() => setStatus(''), 2500);
+      setUnblockingKey(null);
+      setTimeout(() => setStatus(''), 3000);
     }
+  };
+
+  const handleUnblockDate = async () => {
+    if (!selectedCell?.blockedDate || !selectedCell?.propertyId) return;
+    await handleUnblockDateByValue(selectedCell.propertyId, selectedCell.blockedDate, true);
   };
 
   const upcomingBookings = useMemo(() => {
@@ -660,14 +678,27 @@ export default function CalendarPage() {
               <div className="mt-4 max-h-72 space-y-3 overflow-y-auto pr-1">
                 {properties.flatMap((property) =>
                   property.blockedDates?.map((date) => (
-                    <button
-                      key={`${property.id}-${date}`}
-                      type="button"
-                      onClick={() => property.id && openBlockedDetail(property.id, property.title, date)}
-                      className="w-full text-left rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900 transition hover:border-rose-300 hover:bg-rose-100"
-                    >
-                      <span className="font-semibold text-rose-950">{property.title}</span> - {fmt(date)}
-                    </button>
+                    <div key={`${property.id}-${date}`} className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                      <p className="font-semibold text-rose-950">{property.title}</p>
+                      <p className="mt-1">{fmt(date)}</p>
+                      <div className="mt-3 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => property.id && openBlockedDetail(property.id, property.title, date)}
+                          className="flex-1 rounded-full border border-rose-300 bg-white px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
+                        >
+                          Деталі
+                        </button>
+                        <button
+                          type="button"
+                          disabled={!property.id || unblockingKey === `${property.id}:${date}`}
+                          onClick={() => property.id && handleUnblockDateByValue(property.id, date)}
+                          className="flex-1 rounded-full bg-rose-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {unblockingKey === `${property.id}:${date}` ? 'Розблокування...' : 'Розблокувати'}
+                        </button>
+                      </div>
+                    </div>
                   )) ?? [],
                 ).length === 0 ? (
                   <p className="text-slate-500">Ще немає заблокованих дат.</p>

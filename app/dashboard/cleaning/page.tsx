@@ -70,6 +70,7 @@ export default function CleaningPage() {
   }, [fallbackMode]);
 
   const openTickets = tickets.filter((ticket) => ticket.status === 'open');
+
   const doneTickets = tickets.filter((ticket) => ticket.status === 'done');
 
   const handleSync = async () => {
