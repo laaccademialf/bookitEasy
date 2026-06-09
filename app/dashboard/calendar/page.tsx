@@ -228,7 +228,7 @@ export default function CalendarPage() {
 
   const handleBlockDate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!selectedProperty || !blockDate) return;
+    if (!profile?.uid || !selectedProperty || !blockDate) return;
 
     try {
       await addBlockedDate(selectedProperty, blockDate);
