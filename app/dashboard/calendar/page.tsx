@@ -233,13 +233,8 @@ export default function CalendarPage() {
     try {
       await addBlockedDate(selectedProperty, blockDate);
 
-      setProperties((current) =>
-        current.map((property) => {
-          if (property.id !== selectedProperty) return property;
-          const nextDates = new Set([...(property.blockedDates || []), blockDate]);
-          return { ...property, blockedDates: Array.from(nextDates) };
-        }),
-      );
+      const refreshed = await getHostProperties(profile.uid, true);
+      setProperties(refreshed);
 
       setStatus('Дату заблоковано');
       setBlockDate('');
@@ -260,15 +255,8 @@ export default function CalendarPage() {
     try {
       await removeBlockedDate(propertyId, date);
 
-      setProperties((current) =>
-        current.map((property) => {
-          if (property.id !== propertyId) return property;
-          return {
-            ...property,
-            blockedDates: (property.blockedDates || []).filter((blockedDate) => blockedDate !== date),
-          };
-        }),
-      );
+      const refreshed = await getHostProperties(profile.uid, true);
+      setProperties(refreshed);
 
       if (closeModalAfter) {
         setSelectedCell(null);

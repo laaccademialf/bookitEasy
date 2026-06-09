@@ -64,9 +64,9 @@ export async function createProperty(property: Omit<Property, 'id' | 'createdAt'
   return docRef.id;
 }
 
-export async function getHostProperties(hostId: string): Promise<Property[]> {
+export async function getHostProperties(hostId: string, forceRefresh = false): Promise<Property[]> {
   const cached = hostPropertiesCache.get(hostId);
-  if (cached && cached.expiresAt > Date.now()) {
+  if (!forceRefresh && cached && cached.expiresAt > Date.now()) {
     return cached.data;
   }
 
@@ -126,7 +126,11 @@ export async function removeBlockedDate(propertyId: string, date: string) {
     throw new Error('Property not found');
   }
 
-  const nextBlockedDates = (existing.blockedDates || []).filter((blockedDate) => blockedDate !== date);
+  const normalizeDate = (value: string) => String(value || '').trim();
+  const targetDate = normalizeDate(date);
+  const nextBlockedDates = (existing.blockedDates || []).filter(
+    (blockedDate) => normalizeDate(blockedDate) !== targetDate,
+  );
 
   await updateDoc(doc(propertiesCollection, propertyId), {
     blockedDates: nextBlockedDates,
