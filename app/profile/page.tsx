@@ -5,6 +5,7 @@ import { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../providers';
 import { updateCurrentUserAccount } from '../../lib/auth';
 import { PageBanner } from '../../components/PageBanner';
+import { ActiveBookings } from '../../components/ActiveBookings';
 
 export default function ProfilePage() {
   const { profile, loading } = useContext(AuthContext);
@@ -78,11 +79,23 @@ export default function ProfilePage() {
     );
   }
 
+  console.log('👤 Profile:', { uid: profile?.uid, role: profile?.role });
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
-      <PageBanner title="Редагувати профіль" />
+      <PageBanner title="Мій профіль" />
       <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+        {/* Блок активних бронювань */}
+        {profile?.role === 'client' && profile?.uid && (
+          <section className="mb-8">
+            <h2 className="mb-4 text-2xl font-semibold text-slate-900">Мої активні бронювання</h2>
+            <ActiveBookings clientId={profile.uid} />
+          </section>
+        )}
+
+        {/* Форма редагування профілю */}
         <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <h2 className="mb-4 text-xl font-semibold text-slate-900">Редагувати профіль</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-700">Ім'я</label>
