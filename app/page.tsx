@@ -11,7 +11,7 @@ import { AuthContext } from './providers';
 
 export default function Home() {
   const router = useRouter();
-  const { profile, loading: authLoading } = useContext(AuthContext);
+  const { user, profile, loading: authLoading } = useContext(AuthContext);
   const [properties, setProperties] = useState<Property[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,7 +29,7 @@ export default function Home() {
       try {
         const [propertiesData, bookingsData] = await Promise.all([
           getPublicProperties(),
-          profile?.uid ? getClientBookings(profile.uid) : Promise.resolve([]),
+          user?.uid ? getClientBookings(user.uid) : Promise.resolve([]),
         ]);
 
         setProperties(propertiesData);
@@ -41,7 +41,7 @@ export default function Home() {
       }
     };
     load();
-  }, [authLoading, profile, router]);
+  }, [authLoading, profile, router, user]);
 
   const activeBookings = bookings.filter((booking) => booking.status !== 'cancelled');
 
@@ -65,7 +65,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <section className="mx-auto max-w-7xl px-6 py-12 lg:px-10">
-        {profile?.role === 'client' && (
+        {user && profile?.role !== 'admin' && (
           <div className="mb-10 rounded-[2rem] border border-sky-200 bg-white p-6 shadow-sm">
             <div className="flex items-end justify-between gap-4">
               <div>
